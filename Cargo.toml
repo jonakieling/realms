@@ -1,0 +1,10 @@
+[package]
+name = "realms-client"
+version = "0.1.0"
+authors = ["Jonathan Kieling <code@j0na.net>"]
+
+[dependencies]
+serde = "*"
+serde_derive = "*"
+rand = "*"
+bincode = "*"
