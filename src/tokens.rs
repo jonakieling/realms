@@ -23,3 +23,23 @@ pub enum Particularity {
 	River,
 	Carravan
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Expedition {
+    pub explorers: Vec<Explorer>,
+    pub gear: Vec<Gear>
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum Explorer {
+    Ranger,
+    Cartographer,
+    Engineer,
+    Sailor
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum Gear {
+    Tent,
+    Tools
+}

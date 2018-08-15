@@ -1,3 +1,5 @@
+extern crate ggez;
+
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
@@ -11,6 +13,7 @@ use std::env;
 mod client;
 mod server;
 mod tokens;
+mod game;
 
 #[derive(Debug)]
 enum Mode {
@@ -30,4 +33,6 @@ fn main() {
 	    Mode::Client => client::run(),
 	    Mode::Server => server::run(),
 	}
+
+	game::run();
 }
