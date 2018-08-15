@@ -29,11 +29,17 @@ impl Periscope {
 			    },
 			    Event::Input(key) => {
 			    	match key {
+			    		event::Key::Char('r') => {
+		    				self.send_request(RealmsProtocol::REALM(None));
+			    		},
 			    		event::Key::Char('i') => {
 		    				self.send_request(RealmsProtocol::ISLAND(None));
 			    		},
 			    		event::Key::Char('e') => {
 		    				self.send_request(RealmsProtocol::EXPEDITION(None));
+			    		},
+			    		event::Key::Char('c') => {
+		    				println!("{:?}", self.realm);
 			    		},
 			    		event::Key::Char('q') => {
 		    				self.send_request(RealmsProtocol::QUIT);
@@ -48,7 +54,7 @@ impl Periscope {
 	    Ok(())
 	}
 
-	pub fn send_request(&mut self, request: RealmsProtocol) {
+	fn send_request(&mut self, request: RealmsProtocol) {
 		let data = serialize(&request).expect("could not serialize data package for request.");
 		self.stream.write(&data).expect("could not write to tcp stream.");
 		self.stream.flush().unwrap();
@@ -65,17 +71,18 @@ impl Periscope {
 	    let response: RealmsProtocol = deserialize(&buffer).expect("could not deserialize server response");
 
 	    match response {
+	        RealmsProtocol::REALM(Some(realm)) => {
+	    		let realm: Realm = deserialize(&realm).expect("could not deserialize realm");
+	    		self.realm = Some(realm);
+	        },
 	        RealmsProtocol::ISLAND(Some(island)) => {
-	    		let island: Island = deserialize(&island).expect("could not deserialize island");
-				println!("{:?}", island);
+	    		let _island: Island = deserialize(&island).expect("could not deserialize island");
 	        },
 	        RealmsProtocol::EXPEDITION(Some(expedition)) => {
-	    		let expedition: Expedition = deserialize(&expedition).expect("could not deserialize expedition");
-				println!("{:?}", expedition);
+	    		let _expedition: Expedition = deserialize(&expedition).expect("could not deserialize expedition");
 	        },
 	        RealmsProtocol::STATE(Some(state)) => {
-	    		let state: String = deserialize(&state).expect("could not deserialize state");
-				println!("{:?}", state);
+	    		let _state: String = deserialize(&state).expect("could not deserialize state");
 	        },
 	        RealmsProtocol::QUIT => {
 				self.stream.shutdown(Shutdown::Both).expect("connection should have terminated.");

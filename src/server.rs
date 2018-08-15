@@ -1,5 +1,4 @@
 
-use std::collections::HashMap;
 use std::net::TcpListener;
 use std::net::Shutdown;
 use std::io::prelude::*;
@@ -14,11 +13,12 @@ use tokens::*;
 
 pub struct Universe {
 	pub listener: TcpListener,
-	pub realms: HashMap<&'static str, Realm>
+	pub realms: Vec<Realm>
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum RealmsProtocol {
+	REALM(Option<Vec<u8>>),
 	ISLAND(Option<Vec<u8>>),
 	EXPEDITION(Option<Vec<u8>>),
 	STATE(Option<Vec<u8>>),
@@ -26,7 +26,7 @@ pub enum RealmsProtocol {
 }
 
 impl Universe {
-	pub fn run(self, _t: &mut Terminal<RawBackend>) -> Result<(), io::Error> {
+	pub fn run(mut self, _t: &mut Terminal<RawBackend>) -> Result<(), io::Error> {
 	    for stream in self.listener.incoming() {
 			let mut stream = stream.unwrap();
 			loop {
@@ -39,6 +39,19 @@ impl Universe {
 			    let request: RealmsProtocol = deserialize(&buffer).expect("could not deserialize client request");
 
 			    match request {
+			        RealmsProtocol::REALM(_) => {
+			        	let id = self.realms.len();
+			        	let realm = Realm {
+			    			island: Island::new(),
+			    			expedition: Expedition::new(),
+			    			id
+			    		};
+			    		let realm_bytes = serialize(&realm).expect("could not serialize realm");
+			    		let data = serialize(&RealmsProtocol::REALM(Some(realm_bytes))).expect("could not serialize data package for realm response.");
+						stream.write(&data).expect("could not write to tcp stream.");
+			    		self.realms.push(realm);
+						stream.flush().unwrap();
+			        },
 			        RealmsProtocol::ISLAND(_) => {
 			    		let island_bytes = serialize(&Island::new()).expect("could not serialize island");
 			    		let data = serialize(&RealmsProtocol::ISLAND(Some(island_bytes))).expect("could not serialize data package for island response.");

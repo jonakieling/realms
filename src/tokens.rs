@@ -93,5 +93,6 @@ pub enum Gear {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Realm {
     pub island: Island,
-    pub expedition: Expedition
+    pub expedition: Expedition,
+    pub id: usize
 }
