@@ -11,28 +11,32 @@ use tui::backend::RawBackend;
 use termion::event;
 
 use Event;
-use ClientApp;
 use server::RealmsProtocol;
 use tokens::*;
 
-impl ClientApp {
-	pub fn run(self, _t: &mut Terminal<RawBackend>, rx: &Receiver<Event>) -> Result<(), io::Error> {
+pub struct Periscope {
+	pub stream: TcpStream,
+	pub realm: Option<Realm>
+}
+
+impl Periscope {
+	pub fn run(mut self, _t: &mut Terminal<RawBackend>, rx: &Receiver<Event>) -> Result<(), io::Error> {
 		loop {
 			let evt = rx.recv().unwrap();
 			match evt {
 			    Event::Tick => {
-			    	pull_state(&self.stream);
+    				self.send_request(RealmsProtocol::STATE(None));
 			    },
 			    Event::Input(key) => {
 			    	match key {
 			    		event::Key::Char('i') => {
-		    				request_island(&self.stream);
+		    				self.send_request(RealmsProtocol::ISLAND(None));
 			    		},
 			    		event::Key::Char('e') => {
-		    				request_expedition(&self.stream);
+		    				self.send_request(RealmsProtocol::EXPEDITION(None));
 			    		},
 			    		event::Key::Char('q') => {
-		    				quit(&self.stream);
+		    				self.send_request(RealmsProtocol::QUIT);
 		    				break;
 			    		},
 			    		_ => { }
@@ -43,64 +47,43 @@ impl ClientApp {
 
 	    Ok(())
 	}
-}
 
-fn handle_response(mut stream: &TcpStream) {
-	let mut buffer = [0; 512];
+	pub fn send_request(&mut self, request: RealmsProtocol) {
+		let data = serialize(&request).expect("could not serialize data package for request.");
+		self.stream.write(&data).expect("could not write to tcp stream.");
+		self.stream.flush().unwrap();
+		self.handle_response();
+	}
 
-    stream.read(&mut buffer).unwrap();
-    stream.flush().unwrap();
+	fn handle_response(&mut self) {
+		let mut buffer = [0; 512];
+
+	    self.stream.read(&mut buffer).unwrap();
+	    self.stream.flush().unwrap();
 
 
-    let response: RealmsProtocol = deserialize(&buffer).expect("could not deserialize server response");
+	    let response: RealmsProtocol = deserialize(&buffer).expect("could not deserialize server response");
 
-    match response {
-        RealmsProtocol::ISLAND(Some(island)) => {
-    		let island: Island = deserialize(&island).expect("could not deserialize island");
-			println!("{:?}", island);
-        },
-        RealmsProtocol::EXPEDITION(Some(expedition)) => {
-    		let expedition: Expedition = deserialize(&expedition).expect("could not deserialize expedition");
-			println!("{:?}", expedition);
-        },
-        RealmsProtocol::STATE(Some(state)) => {
-    		let state: String = deserialize(&state).expect("could not deserialize state");
-			println!("{:?}", state);
-        },
-        RealmsProtocol::QUIT => {
-			stream.shutdown(Shutdown::Both).expect("connection should have terminated.");
-			println!("quitting");
-        },
-        _ => {
-        	println!("server response not recognized.");
-        }
-    }
-}
-
-pub fn request_island(mut stream: &TcpStream) {
-	let data = serialize(&RealmsProtocol::ISLAND(None)).expect("could not serialize data package for island request.");
-	stream.write(&data).expect("could not write to tcp stream.");
-	stream.flush().unwrap();
-	handle_response(stream);
-}
-
-pub fn request_expedition(mut stream: &TcpStream) {
-	let data = serialize(&RealmsProtocol::EXPEDITION(None)).expect("could not serialize data package for expedition request.");
-	stream.write(&data).expect("could not write to tcp stream.");
-	stream.flush().unwrap();
-	handle_response(stream);
-}
-
-pub fn quit(mut stream: &TcpStream) {
-	let data = serialize(&RealmsProtocol::QUIT).expect("could not serialize data package for quit request.");
-	stream.write(&data).expect("could not write to tcp stream.");
-	stream.flush().unwrap();
-	handle_response(stream);
-}
-
-pub fn pull_state(mut stream: &TcpStream) {
-	let data = serialize(&RealmsProtocol::STATE(None)).expect("could not serialize data package for state request.");
-	stream.write(&data).expect("could not write to tcp stream.");
-	stream.flush().unwrap();
-	handle_response(stream);
+	    match response {
+	        RealmsProtocol::ISLAND(Some(island)) => {
+	    		let island: Island = deserialize(&island).expect("could not deserialize island");
+				println!("{:?}", island);
+	        },
+	        RealmsProtocol::EXPEDITION(Some(expedition)) => {
+	    		let expedition: Expedition = deserialize(&expedition).expect("could not deserialize expedition");
+				println!("{:?}", expedition);
+	        },
+	        RealmsProtocol::STATE(Some(state)) => {
+	    		let state: String = deserialize(&state).expect("could not deserialize state");
+				println!("{:?}", state);
+	        },
+	        RealmsProtocol::QUIT => {
+				self.stream.shutdown(Shutdown::Both).expect("connection should have terminated.");
+				println!("quitting");
+	        },
+	        _ => {
+	        	println!("server response not recognized.");
+	        }
+	    }
+	}
 }

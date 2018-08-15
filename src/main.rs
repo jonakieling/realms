@@ -27,14 +27,6 @@ mod client;
 mod server;
 mod tokens;
 
-pub struct ServerApp {
-	listener: TcpListener
-}
-
-pub struct ClientApp {
-	stream: TcpStream
-}
-
 #[derive(Debug)]
 pub enum Mode {
     Server,
@@ -58,42 +50,43 @@ fn main() {
     let backend = RawBackend::new().unwrap();
     let mut terminal = Terminal::new(backend).unwrap();
 
-	// inter process communication
-    let (tx, rx) = mpsc::channel();
-	let input_tx = tx.clone();
-
-	// event loop
-	thread::spawn(move || {
-        let stdin = io::stdin();
-        for c in stdin.keys() {
-            let evt = c.unwrap();
-            input_tx.send(Event::Input(evt)).unwrap();
-            if evt == event::Key::Char('q') {
-                break;
-            }
-        }
-    });
-
-	// tick loop
-    thread::spawn(move || {
-        let tx = tx.clone();
-        loop {
-            tx.send(Event::Tick).unwrap();
-            thread::sleep(time::Duration::from_millis(500));
-        }
-	});
-
 	match mode {
 	    Mode::Client => {
+
+			// inter process communication
+		    let (tx, rx) = mpsc::channel();
+			let input_tx = tx.clone();
+
+			// event loop
+			thread::spawn(move || {
+		        let stdin = io::stdin();
+		        for c in stdin.keys() {
+		            let evt = c.unwrap();
+		            input_tx.send(Event::Input(evt)).unwrap();
+		            if evt == event::Key::Char('q') {
+		                break;
+		            }
+		        }
+		    });
+
+			// tick loop
+		    thread::spawn(move || {
+		        let tx = tx.clone();
+		        loop {
+		            tx.send(Event::Tick).unwrap();
+		            thread::sleep(time::Duration::from_millis(500));
+		        }
+			});
+
 	    	if let Ok(stream) = TcpStream::connect("127.0.0.1:8080") {
-	    		let client_app = ClientApp { stream };
-		 		client_app.run(&mut terminal, &rx).expect("io error");
+	    		let periscope = client::Periscope { stream, realm: None };
+		 		periscope.run(&mut terminal, &rx).expect("io error");
 			}
 	    },
 	    Mode::Server => {
 			let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
-    		let server_app = ServerApp { listener };
-	    	server_app.run(&mut terminal, &rx).expect("io error");
+    		let universe = server::Universe { listener, realms: vec![] };
+	    	universe.run(&mut terminal).expect("io error");
 	    }
 	}
 }
