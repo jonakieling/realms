@@ -9,9 +9,6 @@ extern crate rand;
 extern crate tui;
 extern crate termion;
 
-use tui::Terminal;
-use tui::backend::RawBackend;
-
 use std::env;
 use std::io;
 use std::sync::mpsc;
@@ -20,6 +17,8 @@ use std::time;
 use std::net::TcpStream;
 use std::net::TcpListener;
 
+use tui::Terminal;
+use tui::backend::RawBackend;
 use termion::event;
 use termion::input::TermRead;
 
@@ -49,6 +48,8 @@ fn main() {
     // tui terminal
     let backend = RawBackend::new().unwrap();
     let mut terminal = Terminal::new(backend).unwrap();
+    terminal.clear().unwrap();
+    terminal.hide_cursor().unwrap();
 
 	match mode {
 	    Mode::Client => {
@@ -79,13 +80,13 @@ fn main() {
 			});
 
 	    	if let Ok(stream) = TcpStream::connect("127.0.0.1:8080") {
-	    		let periscope = client::Periscope { stream, realm: None };
+	    		let periscope = client::Periscope::new(stream);
 		 		periscope.run(&mut terminal, &rx).expect("io error");
 			}
 	    },
 	    Mode::Server => {
 			let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
-    		let universe = server::Universe { listener, realms: vec![] };
+    		let universe = server::Universe { listener, realms: vec![], requests: vec![], clients: vec![] };
 	    	universe.run(&mut terminal).expect("io error");
 	    }
 	}

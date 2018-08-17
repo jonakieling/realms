@@ -1,5 +1,22 @@
 
+use std::fmt;
 use rand::{thread_rng, distributions::Uniform, Rng};
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum RealmsProtocol {
+    CONNECT(Option<usize>),
+    REALM(Option<Vec<u8>>),
+    ISLAND(Option<Vec<u8>>),
+    EXPEDITION(Option<Vec<u8>>),
+    STATE(Option<Vec<u8>>),
+    QUIT
+}
+
+impl fmt::Display for RealmsProtocol {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Island {
@@ -46,6 +63,12 @@ pub struct Tile {
     pub particularities: Vec<Particularity>
 }
 
+impl fmt::Display for Tile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.terrain)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Terrain {
     Coast,
@@ -70,8 +93,8 @@ pub struct Expedition {
 impl Expedition {
     pub fn new() -> Expedition {
         Expedition {
-            explorers: vec![],
-            gear: vec![]
+            explorers: vec![Explorer::Ranger, Explorer::Cartographer, Explorer::Engineer, Explorer::Sailor],
+            gear: vec![Gear::Tent, Gear::Tools]
         }
     }
 }
@@ -94,5 +117,6 @@ pub enum Gear {
 pub struct Realm {
     pub island: Island,
     pub expedition: Expedition,
-    pub id: usize
+    pub id: usize,
+    pub age: usize
 }
