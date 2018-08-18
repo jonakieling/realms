@@ -57,7 +57,7 @@ impl Island {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Tile {
     pub terrain: Terrain,
     pub particularities: Vec<Particularity>
@@ -69,7 +69,7 @@ impl fmt::Display for Tile {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Terrain {
     Coast,
     Planes,
@@ -77,7 +77,7 @@ pub enum Terrain {
     Mountain
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Particularity {
 	Town,
 	River,
@@ -99,12 +99,18 @@ impl Expedition {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Explorer {
     Ranger,
     Cartographer,
     Engineer,
     Sailor
+}
+
+impl fmt::Display for Explorer {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]

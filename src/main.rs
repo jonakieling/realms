@@ -25,6 +25,7 @@ use termion::input::TermRead;
 mod client;
 mod server;
 mod tokens;
+mod utility;
 
 #[derive(Debug)]
 pub enum Mode {

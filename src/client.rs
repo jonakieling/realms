@@ -11,16 +11,25 @@ use tui::backend::RawBackend;
 use termion::event;
 
 use tui::layout::{Direction, Group, Size};
-use tui::widgets::{Row, Table, Widget, Paragraph, Block, Borders};
+use tui::widgets::{Row, Table, Widget, Paragraph, Block, Borders, List, Item, SelectableList};
 use tui::style::{Style, Color};
 
 use Event;
 use tokens::*;
+use utility::SelectionStorage;
+
+pub enum InteractiveUi {
+	LOCATIONS,
+	EXPLORERS
+}
 
 pub struct Periscope {
 	pub stream: TcpStream,
 	pub realm: Option<Realm>,
-	pub id: usize
+	pub id: usize,
+	pub locations: SelectionStorage<Tile>,
+	pub explorers: SelectionStorage<Explorer>,
+	pub active_ui: InteractiveUi
 }
 
 impl Periscope {
@@ -28,7 +37,10 @@ impl Periscope {
 		let mut periscope = Periscope {
 			stream,
 			realm: None,
-			id: 0
+			id: 0,
+			locations: SelectionStorage::new(),
+			explorers: SelectionStorage::new(),
+			active_ui: InteractiveUi::LOCATIONS
 		};
 
 		periscope.send_request(RealmsProtocol::CONNECT(None));
@@ -42,7 +54,7 @@ impl Periscope {
 			
 			Group::default()
 		        .direction(Direction::Vertical)
-        		.sizes(&[Size::Fixed(6), Size::Min(0)])
+        		.sizes(&[Size::Fixed(8), Size::Min(0)])
 		        .render(t, &t_size, |t, main_chunks| {
 
 				Group::default()
@@ -51,7 +63,7 @@ impl Periscope {
 			        .render(t, &main_chunks[0], |t, chunks| {
 			        	Paragraph::default()
 					        .text(
-					            "request new realm with {mod=bold r}\nchange island with {mod=bold i}\nchange expedition with {mod=bold e}\nexit with {mod=bold q}",
+					            "request new realm with {mod=bold r}\nchange island with {mod=bold i}\nchange expedition with {mod=bold e}\nexit with {mod=bold q}\nselect with {mod=bold ↓↑}, switch with {mod=bold ←→}\n",
 					        ).block(Block::default().title("Abstract").borders(Borders::ALL))
 					        .render(t, &chunks[0]);
 
@@ -64,33 +76,70 @@ impl Periscope {
 
 			        });
 
-			        if let Some(ref realm) = self.realm {
+			        if self.realm.is_some() {
+
+			        	let location = self.locations.current().unwrap().clone();
+			        	let location_index = self.locations.current_index();
+			        	let locations: Vec<String> = self.locations.iter().map(|tile| {
+		                    format!("{}", tile)
+		                }).collect();
+
+			        	let explorer_index = self.explorers.current_index();
+			        	let explorers: Vec<String> = self.explorers.iter().map(|explorer| {
+		                    format!("{}", explorer)
+		                }).collect();
 
 						Group::default()
 					        .direction(Direction::Horizontal)
-			        		.sizes(&[Size::Percent(50), Size::Percent(50)])
+			        		.sizes(&[Size::Percent(30), Size::Percent(70)])
 					        .render(t, &main_chunks[1], |t, chunks| {
 					            let style = Style::default();
 
-					            Table::new(
-					                ["terrain", "particularities"].into_iter(),
-					                realm.island.tiles.iter().map(|tile| {
-					                    Row::StyledData(vec![format!("{}", tile), format!("{:?}", tile.particularities)].into_iter(), &style)
-					                })
-					            ).block(Block::default().title("Island").borders(Borders::ALL))
-				                .header_style(Style::default().fg(Color::Yellow))
-				                .widths(&[13, 12])
-				                .render(t, &chunks[0]);
+					        	let mut border_style = Style::default();
+					        	if let InteractiveUi::LOCATIONS = self.active_ui {
+					        	    border_style = Style::default().fg(Color::Yellow);
+					        	}
 
-					            Table::new(
-					                ["explorer"].into_iter(),
-					                realm.expedition.explorers.iter().map(|explorer| {
-					                    Row::StyledData(vec![format!("{:?}", &explorer)].into_iter(), &style)
-					                })
-					            ).block(Block::default().title("Expedition").borders(Borders::ALL))
-				                .header_style(Style::default().fg(Color::Yellow))
-				                .widths(&[30])
-				                .render(t, &chunks[1]);
+	                            SelectableList::default()
+	                                .block(Block::default().borders(Borders::ALL).title("Island").border_style(border_style))
+	                                .items(&locations)
+	                                .select(location_index)
+	                                .highlight_style(
+	                                    Style::default().fg(Color::Yellow),
+	                                )
+	                                .highlight_symbol(">")
+	                                .render(t, &chunks[0]);
+
+								Group::default()
+							        .direction(Direction::Vertical)
+					        		.sizes(&[Size::Percent(50), Size::Percent(50)])
+							        .render(t, &chunks[1], |t, chunks| {
+
+							        	let mut border_style = Style::default();
+							        	if let InteractiveUi::EXPLORERS = self.active_ui {
+							        	    border_style = Style::default().fg(Color::Yellow);
+							        	}
+
+			                            SelectableList::default()
+			                                .block(Block::default().borders(Borders::ALL).title("Expedition").border_style(border_style))
+			                                .items(&explorers)
+			                                .select(explorer_index)
+			                                .highlight_style(
+			                                    Style::default().fg(Color::Yellow),
+			                                ).highlight_symbol(">")
+			                                .render(t, &chunks[0]);
+
+
+								        	let particularities = location.particularities.iter().map(|particularity| {
+								                Item::StyledData(
+								                    format!("{:?}", particularity),
+								                    &style
+								                )
+								            });
+								    		List::new(particularities)
+								                .block(Block::default().borders(Borders::ALL).title(&format!("{} {}", "Location", location)))
+								                .render(t, &chunks[1]);
+							        });
 					        });
 			        }
 		        });
@@ -103,6 +152,38 @@ impl Periscope {
 			    },
 			    Event::Input(key) => {
 			    	match key {
+			    		event::Key::Up => {
+		    				match self.active_ui {
+		    				    InteractiveUi::LOCATIONS => {
+		    				    	self.locations.prev();
+		    				    },
+		    				    InteractiveUi::EXPLORERS => {
+		    				    	self.explorers.prev();
+		    				    }
+		    				}
+			    		},
+			    		event::Key::Down => {
+		    				match self.active_ui {
+		    				    InteractiveUi::LOCATIONS => {
+		    				    	self.locations.next();
+		    				    },
+		    				    InteractiveUi::EXPLORERS => {
+		    				    	self.explorers.next();
+		    				    }
+		    				}
+			    		},
+			    		event::Key::Right => {
+		    				match self.active_ui {
+		    				    InteractiveUi::LOCATIONS => self.active_ui = InteractiveUi::EXPLORERS,
+		    				    InteractiveUi::EXPLORERS => self.active_ui = InteractiveUi::LOCATIONS
+		    				}
+			    		},
+			    		event::Key::Left => {
+		    				match self.active_ui {
+		    				    InteractiveUi::LOCATIONS => self.active_ui = InteractiveUi::EXPLORERS,
+		    				    InteractiveUi::EXPLORERS => self.active_ui = InteractiveUi::LOCATIONS
+		    				}
+			    		},
 			    		event::Key::Char('r') => {
 		    				self.send_request(RealmsProtocol::REALM(None));
 			    		},
@@ -149,6 +230,8 @@ impl Periscope {
 	        },
 	        RealmsProtocol::REALM(Some(realm)) => {
 	    		let realm: Realm = deserialize(&realm).expect("could not deserialize realm");
+	    		self.locations = SelectionStorage::new_from(&realm.island.tiles);
+	    		self.explorers = SelectionStorage::new_from(&realm.expedition.explorers);
 	    		self.realm = Some(realm);
 	        },
 	        RealmsProtocol::ISLAND(Some(island)) => {
