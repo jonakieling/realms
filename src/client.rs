@@ -62,7 +62,7 @@ impl Periscope {
 
 	pub fn run(mut self, t: &mut Terminal<RawBackend>, rx: &Receiver<Event>) -> Result<(), io::Error> {
 		loop {
-			
+
 			draw_dashboard(t, &mut self.data)?;
 	        t.draw()?;
 
@@ -112,6 +112,7 @@ fn handle_response(stream: &mut TcpStream, data: &mut Data) {
     }
 }
 
+// todo extract functions for modules
 fn handle_events(rx: &Receiver<Event>, stream: &mut TcpStream, data: &mut Data) -> bool {
 	let mut should_continue = true;
 
@@ -179,9 +180,11 @@ fn handle_events(rx: &Receiver<Event>, stream: &mut TcpStream, data: &mut Data) 
 	    		event::Key::Char('\n') => {
 	    			match data.active {
     				    InteractiveUi::Explorers => {
+    				    	// todo extract function for cleaner borrowing
     				    	let location_id = data.locations.current().unwrap().id;
     				    	let realm_id = data.realm.as_ref().unwrap().id;
     				    	let action = data.explorers.current().unwrap().action();
+    				    	// request reset locations and explorers index, we set it back afterwards
     				    	let last_location_index = data.locations.current_index();
     				    	let last_explorers_index = data.explorers.current_index();
 							send_request(stream, data, RealmsProtocol::Move(Move::Action(realm_id, location_id, action)));
@@ -189,6 +192,7 @@ fn handle_events(rx: &Receiver<Event>, stream: &mut TcpStream, data: &mut Data) 
 							data.explorers.at(last_explorers_index);
     				    },
     				    InteractiveUi::Locations => {
+    				    	// todo extract function for cleaner borrowing
     				    	let location_id = data.locations.current().unwrap().id;
     				    	data.location = Some(data.locations.current().unwrap().clone());
     				    	let realm_id = data.realm.as_ref().unwrap().id;
@@ -198,6 +202,7 @@ fn handle_events(rx: &Receiver<Event>, stream: &mut TcpStream, data: &mut Data) 
 							data.locations.at(last_index);
     				    },
     				    InteractiveUi::Realms => {
+    				    	// todo extract function for cleaner borrowing
 	    					data.active = InteractiveUi::Locations;
     				    	let realm_id = *data.realms.current().unwrap();
     				    	let mut loaded = false;
@@ -225,6 +230,7 @@ fn handle_events(rx: &Receiver<Event>, stream: &mut TcpStream, data: &mut Data) 
 	should_continue
 }
 
+// todo extract functions for modules
 fn draw_dashboard(terminal: &mut Terminal<RawBackend>, data: &mut Data) -> Result<(), io::Error> {
 	let terminal_area = terminal.size().unwrap();
 			
