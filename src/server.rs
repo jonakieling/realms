@@ -1,5 +1,4 @@
 
-use std::collections::HashMap;
 use std::net::TcpStream;
 use std::net::TcpListener;
 use std::net::Shutdown;
@@ -23,8 +22,7 @@ pub struct Universe {
 	pub listener: TcpListener,
 	pub realms: Vec<Realm>,
 	pub requests: Vec<(usize, RealmsProtocol)>,
-	pub clients: Vec<Client>,
-	pub client_locations: HashMap<usize, usize>
+	pub clients: Vec<Client>
 }
 
 pub struct Client {
@@ -49,7 +47,7 @@ impl Universe {
 	    for stream in self.listener.incoming() {
 			let mut stream = stream.unwrap();
 			loop {
-			    let mut buffer = [0; 512];
+			    let mut buffer = [0; 1024];
 
 			    stream.read(&mut buffer).unwrap();
 			    stream.flush().unwrap();
@@ -85,7 +83,8 @@ impl Universe {
 			    			island: Island::new(),
 			    			expedition: Expedition::new(),
 			    			id,
-			    			age: 0
+			    			age: 0,
+			    			client_locations: vec![]
 			    		};
 						send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 			    		self.realms.push(realm);
@@ -108,7 +107,8 @@ impl Universe {
 				    			island: Island::new(),
 				    			expedition: Expedition::new(),
 				    			id,
-				    			age: 0
+				    			age: 0,
+			    				client_locations: vec![]
 				    		};
 							send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 				    		self.realms.push(realm);
@@ -120,9 +120,25 @@ impl Universe {
 			    		    }
 			    		}
 			        },
-			        RealmsProtocol::Move(Move::ChangeLocation(tile_id)) => {
-		        		self.client_locations.insert(client_id, tile_id);
-						send_response(&RealmsProtocol::Move(Move::ChangeLocation(tile_id)), &stream)?;
+			        RealmsProtocol::Move(Move::ChangeLocation(realm_id, tile_id)) => {
+			        	for realm in &mut self.realms {
+			        	    if realm_id == realm.id {
+			        	    	let mut remove_index = 0;
+			        	    	let mut remove = false;
+					        	for (index, (client, _)) in realm.client_locations.iter().enumerate() {
+					        	    if client == &client_id {
+					        	        remove_index = index;
+					        	        remove = true;
+					        	    }
+					        	}
+
+					        	if remove {
+					        		realm.client_locations.remove(remove_index);
+					        	}
+			        	    	realm.client_locations.push((client_id, tile_id));
+								send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
+			        	    }
+			        	}
 			    		self.requests.push((client_id, request));
 			        },
 			        RealmsProtocol::Quit => {
@@ -197,7 +213,7 @@ fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<(usize, RealmsPro
             });
         	let realms = realms.iter().rev().map(|realm| {
         		Item::StyledData(
-                    format!("{}", realm.id),
+                    format!("{} {:?}", realm.id, realm.client_locations),
                     &style
                 )
             });

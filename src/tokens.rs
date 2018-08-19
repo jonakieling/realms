@@ -18,7 +18,7 @@ pub enum RealmsProtocol {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Move {
-    ChangeLocation(usize)
+    ChangeLocation(usize, usize)
 }
 
 impl fmt::Display for RealmsProtocol {
@@ -138,6 +138,7 @@ pub enum Gear {
 pub struct Realm {
     pub island: Island,
     pub expedition: Expedition,
+    pub client_locations: Vec<(usize, usize)>,
     pub id: usize,
     pub age: usize
 }
