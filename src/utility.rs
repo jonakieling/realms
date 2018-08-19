@@ -41,7 +41,7 @@ impl<T: Clone> SelectionStorage<T> {
         self.current()
     }
 
-    pub fn current(&mut self) -> Option<&T> {
+    pub fn current(&self) -> Option<&T> {
         if self.storage.len() != 0 {
             self.storage.get(self.current_selection)
         } else {
