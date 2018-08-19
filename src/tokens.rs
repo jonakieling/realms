@@ -11,7 +11,14 @@ pub enum RealmsProtocol {
     RequestNewRealm,
     RequestRealm(usize),
     Realm(Realm),
-    Quit
+    Move(Move),
+    Quit,
+    NotImplemented
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum Move {
+    ChangeLocation(usize)
 }
 
 impl fmt::Display for RealmsProtocol {
@@ -29,6 +36,7 @@ impl Island {
     pub fn new() -> Island {
         let mut rng = thread_rng();
         let mut rng2 = thread_rng();
+        let mut tile_id = 0;
         let tiles: Vec<Tile> = rng.sample_iter(&Uniform::new_inclusive(1, 4)).take(19).map(|number| {
             let terrain = match number {
                 1 => Terrain::Coast,
@@ -47,10 +55,14 @@ impl Island {
                 }
             }).collect();
 
-            Tile {
+            let tile = Tile {
+                id: tile_id,
                 terrain,
                 particularities
-            }
+            };
+            tile_id += 1;
+
+            tile
         }).collect();
 
         Island {
@@ -61,13 +73,14 @@ impl Island {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Tile {
+    pub id: usize,
     pub terrain: Terrain,
     pub particularities: Vec<Particularity>
 }
 
 impl fmt::Display for Tile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self.terrain)
+        write!(f, "{} {:?}", self.id, self.terrain)
     }
 }
 

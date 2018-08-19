@@ -30,6 +30,7 @@ pub struct Periscope {
 	pub realms: SelectionStorage<usize>,
 	pub id: usize,
 	pub locations: SelectionStorage<Tile>,
+	pub current_location: Option<usize>,
 	pub explorers: SelectionStorage<Explorer>,
 	pub active_ui: InteractiveUi
 }
@@ -42,6 +43,7 @@ impl Periscope {
 			realms: SelectionStorage::new(),
 			id: 0,
 			locations: SelectionStorage::new(),
+			current_location: None,
 			explorers: SelectionStorage::new(),
 			active_ui: InteractiveUi::Realms
 		};
@@ -88,7 +90,11 @@ impl Periscope {
 					        	let location = self.locations.current().unwrap().clone();
 					        	let location_index = self.locations.current_index();
 					        	let locations: Vec<String> = self.locations.iter().map(|tile| {
-				                    format!("{}", tile)
+					        		if self.current_location.is_some() && tile.id == self.current_location.unwrap() {
+				                    	format!("{} *", tile)
+					        		} else {
+				                    	format!("{}", tile)
+					        		}
 				                }).collect();
 
 					        	let explorer_index = self.explorers.current_index();
@@ -280,7 +286,10 @@ impl Periscope {
 			    		event::Key::Char('\n') => {
 			    			match self.active_ui {
 		    				    InteractiveUi::Explorers => { },
-		    				    InteractiveUi::Locations => { },
+		    				    InteractiveUi::Locations => {
+		    				    	let location_id = self.locations.current().unwrap().id;
+	    							self.send_request(RealmsProtocol::Move(Move::ChangeLocation(location_id)));
+		    				    },
 		    				    InteractiveUi::Realms => {
 			    					self.active_ui = InteractiveUi::Locations;
 		    				    	let realm_id = *self.realms.current().unwrap();
@@ -340,11 +349,13 @@ impl Periscope {
 	    		self.explorers = SelectionStorage::new_from(&realm.expedition.explorers);
 	    		self.realm = Some(realm);
 	        },
+	        RealmsProtocol::Move(Move::ChangeLocation(location_id)) => {
+	        	self.current_location = Some(location_id);
+	        },
 	        RealmsProtocol::Quit => {
 				self.stream.shutdown(Shutdown::Both).expect("connection should have terminated.");
 	        },
-	        _ => {
-	        }
+	        _ => { }
 	    }
 	}
 }

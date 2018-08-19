@@ -1,4 +1,5 @@
 
+use std::collections::HashMap;
 use std::net::TcpStream;
 use std::net::TcpListener;
 use std::net::Shutdown;
@@ -22,7 +23,8 @@ pub struct Universe {
 	pub listener: TcpListener,
 	pub realms: Vec<Realm>,
 	pub requests: Vec<(usize, RealmsProtocol)>,
-	pub clients: Vec<Client>
+	pub clients: Vec<Client>,
+	pub client_locations: HashMap<usize, usize>
 }
 
 pub struct Client {
@@ -51,7 +53,6 @@ impl Universe {
 
 			    stream.read(&mut buffer).unwrap();
 			    stream.flush().unwrap();
-
 
 			    let (client_id, request): (usize, RealmsProtocol) = deserialize(&buffer).expect("could not deserialize client request.");
 
@@ -119,6 +120,11 @@ impl Universe {
 			    		    }
 			    		}
 			        },
+			        RealmsProtocol::Move(Move::ChangeLocation(tile_id)) => {
+		        		self.client_locations.insert(client_id, tile_id);
+						send_response(&RealmsProtocol::Move(Move::ChangeLocation(tile_id)), &stream)?;
+			    		self.requests.push((client_id, request));
+			        },
 			        RealmsProtocol::Quit => {
 						send_response(&RealmsProtocol::Quit, &stream)?;
 						stream.shutdown(Shutdown::Both).expect("stream could not shut down.");
@@ -133,7 +139,9 @@ impl Universe {
 			    		draw_dashboard(t, &self.requests, &self.clients, &self.realms)?;
 			        	break;
 			        },
-			        _ => { }
+			        _ => {
+						send_response(&RealmsProtocol::NotImplemented, &stream)?;
+					}
 			    }
 			    draw_dashboard(t, &self.requests, &self.clients, &self.realms)?;
 			}
@@ -197,6 +205,7 @@ fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<(usize, RealmsPro
     		List::new(requests)
                 .block(Block::default().borders(Borders::ALL).title("Requests"))
                 .render(t, &chunks[0]);
+    		// end List::new()
 
 
 			Group::default()
@@ -207,11 +216,16 @@ fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<(usize, RealmsPro
 		    		List::new(clients)
 		                .block(Block::default().borders(Borders::ALL).title("Clients"))
 		                .render(t, &chunks[0]);
+	        		// end List::new()
 
 		    		List::new(realms)
 		                .block(Block::default().borders(Borders::ALL).title("Realms"))
 		                .render(t, &chunks[1]);
+	        		// end List::new()
 		        });
+	        // end Group::default()
         });
+    // end Groupd::default()
+
 	t.draw()
 }

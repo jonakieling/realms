@@ -11,6 +11,7 @@ extern crate termion;
 
 extern crate chrono;
 
+use std::collections::HashMap;
 use std::env;
 use std::io;
 use std::sync::mpsc;
@@ -89,7 +90,7 @@ fn main() {
 	    },
 	    Mode::Server => {
 			let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
-    		let universe = server::Universe { listener, realms: vec![], requests: vec![], clients: vec![] };
+    		let universe = server::Universe { listener, realms: vec![], requests: vec![], clients: vec![], client_locations: HashMap::new() };
 	    	universe.run(&mut terminal).expect("io error");
 	    }
 	}
