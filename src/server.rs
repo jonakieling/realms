@@ -136,7 +136,7 @@ impl Universe {
 			        	    		if tile_id == location.id {
 		        	    				match action {
 		        	    				    ExplorerAction::Build => {
-		        	    				    	location.buildings.push("Hut".to_string());
+		        	    				    	location.buildings.push("\u{2302}".to_string());
 		        	    				    },
 		        	    				    ExplorerAction::Map => {
 		        	    				    	location.mapped = true;
