@@ -2,23 +2,37 @@
 use std::fmt;
 use rand::{thread_rng, distributions::Uniform, Rng};
 
-#[derive(Serialize, Deserialize, Debug)]
+pub type ClientId = usize;
+pub type RealmId = usize;
+pub type TileId = usize;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RealmsProtocol {
     Register,
-    Connect(usize),
+    Connect(ClientId),
     RequestRealmsList,
-    RealmsList(Vec<usize>),
+    RealmsList(Vec<RealmId>),
     RequestNewRealm,
-    RequestRealm(usize),
+    RequestRealm(RealmId),
     Realm(Realm),
     Move(Move),
     Quit,
     NotImplemented
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Move {
-    ChangeLocation(usize, usize)
+    ChangeLocation(RealmId, TileId),
+    Action(RealmId, TileId, ExplorerAction)
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum ExplorerAction {
+    Build,
+    Hunt,
+    Sail,
+    Map,
+    Wait
 }
 
 impl fmt::Display for RealmsProtocol {
@@ -58,7 +72,10 @@ impl Island {
             let tile = Tile {
                 id: tile_id,
                 terrain,
-                particularities
+                particularities,
+                buildings: vec![],
+                mapped: false,
+                resources: 10
             };
             tile_id += 1;
 
@@ -73,9 +90,12 @@ impl Island {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Tile {
-    pub id: usize,
+    pub id: TileId,
     pub terrain: Terrain,
-    pub particularities: Vec<Particularity>
+    pub particularities: Vec<Particularity>,
+    pub buildings: Vec<String>,
+    pub mapped: bool,
+    pub resources: usize
 }
 
 impl fmt::Display for Tile {
@@ -122,6 +142,17 @@ pub enum Explorer {
     Sailor
 }
 
+impl Explorer {
+    pub fn action(&self) -> ExplorerAction {
+        match self {
+            Explorer::Ranger => ExplorerAction::Hunt,
+            Explorer::Cartographer => ExplorerAction::Map,
+            Explorer::Engineer => ExplorerAction::Build,
+            Explorer::Sailor => ExplorerAction::Sail
+        }
+    }
+}
+
 impl fmt::Display for Explorer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
@@ -138,7 +169,19 @@ pub enum Gear {
 pub struct Realm {
     pub island: Island,
     pub expedition: Expedition,
-    pub client_locations: Vec<(usize, usize)>,
-    pub id: usize,
+    pub client_locations: Vec<(ClientId, TileId)>,
+    pub id: RealmId,
     pub age: usize
+}
+
+impl Realm {
+    pub fn new(id: RealmId) -> Realm {
+        Realm {
+            island: Island::new(),
+            expedition: Expedition::new(),
+            id,
+            age: 0,
+            client_locations: vec![]
+        }
+    }
 }

@@ -21,18 +21,18 @@ use tokens::*;
 pub struct Universe {
 	pub listener: TcpListener,
 	pub realms: Vec<Realm>,
-	pub requests: Vec<(usize, RealmsProtocol)>,
+	pub requests: Vec<(ClientId, RealmsProtocol)>,
 	pub clients: Vec<Client>
 }
 
 pub struct Client {
-	id: usize,
+	id: ClientId,
 	connected: bool,
 	time: DateTime<Local>
 }
 
 impl Client {
-	pub fn new(id: usize) -> Client {
+	pub fn new(id: ClientId) -> Client {
 		Client {
 			id,
 			connected: true,
@@ -52,7 +52,7 @@ impl Universe {
 			    stream.read(&mut buffer).unwrap();
 			    stream.flush().unwrap();
 
-			    let (client_id, request): (usize, RealmsProtocol) = deserialize(&buffer).expect("could not deserialize client request.");
+			    let (client_id, request): (ClientId, RealmsProtocol) = deserialize(&buffer).expect("could not deserialize client request.");
 
 			    match request {
 			        RealmsProtocol::Register => {
@@ -79,13 +79,7 @@ impl Universe {
 			        },
 			        RealmsProtocol::RequestNewRealm => {
 			        	let id = self.realms.len();
-			        	let realm = Realm {
-			    			island: Island::new(),
-			    			expedition: Expedition::new(),
-			    			id,
-			    			age: 0,
-			    			client_locations: vec![]
-			    		};
+				        let realm = Realm::new(id);
 						send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 			    		self.realms.push(realm);
 			    		self.requests.push((client_id, request));
@@ -103,13 +97,7 @@ impl Universe {
 			        	} else {
 			        		// send new realm on miss
 				        	let id = self.realms.len();
-				        	realm = Realm {
-				    			island: Island::new(),
-				    			expedition: Expedition::new(),
-				    			id,
-				    			age: 0,
-			    				client_locations: vec![]
-				    		};
+				        	realm = Realm::new(id);
 							send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 				    		self.realms.push(realm);
 			        	}
@@ -140,6 +128,33 @@ impl Universe {
 			        	    }
 			        	}
 			    		self.requests.push((client_id, request));
+			        },
+			        RealmsProtocol::Move(Move::Action(realm_id, tile_id, action)) => {
+			        	for realm in &mut self.realms {
+			        	    if realm_id == realm.id {
+		        	    		for location in &mut realm.island.tiles {
+			        	    		if tile_id == location.id {
+		        	    				match action {
+		        	    				    ExplorerAction::Build => {
+		        	    				    	location.buildings.push("Hut".to_string());
+		        	    				    },
+		        	    				    ExplorerAction::Map => {
+		        	    				    	location.mapped = true;
+		        	    				    },
+		        	    				    ExplorerAction::Hunt => {
+		        	    				    	if location.resources > 0 {
+		        	    				    		location.resources -= 1;
+		        	    				    	}
+		        	    				    },
+		        	    				    ExplorerAction::Sail => {},
+		        	    				    ExplorerAction::Wait => {}
+		        	    				}
+			        	    		}
+		        	    		}
+								send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
+			        	    }
+			        	}
+			    		self.requests.push((client_id, RealmsProtocol::Move(Move::Action(realm_id, tile_id, action))));
 			        },
 			        RealmsProtocol::Quit => {
 						send_response(&RealmsProtocol::Quit, &stream)?;
@@ -177,7 +192,7 @@ fn send_response(data: &RealmsProtocol, mut stream: &TcpStream) -> Result<(), io
 }
 
 
-fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<(usize, RealmsProtocol)>, clients: &Vec<Client>, realms: &Vec<Realm>) -> Result<(), io::Error> {
+fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtocol)>, clients: &Vec<Client>, realms: &Vec<Realm>) -> Result<(), io::Error> {
 	let t_size = t.size().unwrap();
 
 	Group::default()

@@ -73,8 +73,9 @@ impl<T: Clone> SelectionStorage<T> {
         }
     }
 
-    pub fn at(&self, index: usize) -> Option<&T> {
+    pub fn at(&mut self, index: usize) -> Option<&T> {
     	if self.storage.len() > index {
+            self.current_selection = index;
     		Some(&self.storage[index])
     	} else {
     		None
@@ -82,7 +83,7 @@ impl<T: Clone> SelectionStorage<T> {
     }
 
     pub fn current_index(&self) -> usize {
-        self.current_selection
+        self.current_selection.clone()
     }
 
     pub fn insert(&mut self, item: T) {

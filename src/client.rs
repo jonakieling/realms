@@ -27,8 +27,9 @@ pub enum InteractiveUi {
 pub struct Periscope {
 	pub stream: TcpStream,
 	pub realm: Option<Realm>,
-	pub realms: SelectionStorage<usize>,
-	pub id: usize,
+	pub realms: SelectionStorage<RealmId>,
+	pub id: ClientId,
+	pub location: Option<Tile>,
 	pub locations: SelectionStorage<Tile>,
 	pub explorers: SelectionStorage<Explorer>,
 	pub active_ui: InteractiveUi
@@ -41,6 +42,7 @@ impl Periscope {
 			realm: None,
 			realms: SelectionStorage::new(),
 			id: 0,
+			location: None,
 			locations: SelectionStorage::new(),
 			explorers: SelectionStorage::new(),
 			active_ui: InteractiveUi::Realms
@@ -88,16 +90,14 @@ impl Periscope {
 					        	let location = self.locations.current().unwrap().clone();
 					        	let location_index = self.locations.current_index();
 					        	let locations: Vec<String> = self.locations.iter().map(|tile| {
-					        		let mut selected = false;
-					        		for (client, location) in &self.realm.as_ref().unwrap().client_locations {
-					        		    if client == &self.id && location == &tile.id {
-					        		        selected = true;
-					        		    }
-					        		}
-					        		if selected {
-				                    	format!("{} *", tile)
+					        		if let Some(ref location) = self.location {
+					        			if location.id == tile.id {
+						        			format!("{} *", tile)
+					        			} else {
+						        			format!("{}", tile)
+					        			}
 					        		} else {
-				                    	format!("{}", tile)
+					        			format!("{}", tile)
 					        		}
 				                }).collect();
 
@@ -132,6 +132,7 @@ impl Periscope {
 							        		.sizes(&[Size::Percent(30), Size::Percent(70)])
 									        .render(t, &chunks[1], |t, chunks| {
 									            let style = Style::default();
+									            let highlight = Style::default().fg(Color::Yellow);
 
 									        	let mut border_style = Style::default();
 									        	if let InteractiveUi::Locations = self.active_ui {
@@ -168,16 +169,46 @@ impl Periscope {
 							                                .render(t, &chunks[0]);
 											        	// end SelectableList::default()
 
-											        	let particularities = location.particularities.iter().map(|particularity| {
-											                Item::StyledData(
-											                    format!("{:?}", particularity),
-											                    &style
-											                )
-											            });
-											    		List::new(particularities)
-											                .block(Block::default().borders(Borders::ALL).title(&format!("{} {}", "Location", location)))
-											                .render(t, &chunks[1]);
-											        	// end List::new()
+
+														Group::default()
+													        .direction(Direction::Horizontal)
+											        		.sizes(&[Size::Percent(50), Size::Percent(50)])
+													        .render(t, &chunks[1], |t, chunks| {
+
+											        			let mut info = vec![];
+											        			info.push(Item::StyledData(
+													                    format!("Buildings {:?}", location.buildings),
+													                    &style
+												                ));
+											        			info.push(Item::StyledData(
+													                    format!("Resources {}", location.resources),
+													                    &style
+												                ));
+												                if location.mapped {
+												        			info.push(Item::StyledData(
+														                    format!("Mapped"),
+														                    &highlight
+													                ));
+												                }
+
+													    		List::new(info.into_iter())
+													                .block(Block::default().borders(Borders::ALL).title(&format!("{} {}", "Location", location)))
+													                .render(t, &chunks[0]);
+												        		// end List::new()
+
+													        	let particularities = location.particularities.iter().map(|particularity| {
+													                Item::StyledData(
+													                    format!("{:?}", particularity),
+													                    &style
+													                )
+													            });
+													    		List::new(particularities)
+													                .block(Block::default().borders(Borders::ALL).title(&format!("Particularities")))
+													                .render(t, &chunks[1]);
+												        		// end List::new()
+
+													        });
+											        	// end Group::default()
 											        // end Group::default()
 										        });
 								        	});
@@ -289,11 +320,24 @@ impl Periscope {
 			    		},
 			    		event::Key::Char('\n') => {
 			    			match self.active_ui {
-		    				    InteractiveUi::Explorers => { },
-		    				    InteractiveUi::Locations => {
+		    				    InteractiveUi::Explorers => {
 		    				    	let location_id = self.locations.current().unwrap().id;
 		    				    	let realm_id = self.realm.as_ref().unwrap().id;
+		    				    	let action = self.explorers.current().unwrap().action();
+		    				    	let last_location_index = self.locations.current_index();
+		    				    	let last_explorers_index = self.explorers.current_index();
+	    							self.send_request(RealmsProtocol::Move(Move::Action(realm_id, location_id, action)));
+	    							self.locations.at(last_location_index);
+	    							self.explorers.at(last_explorers_index);
+		    				    },
+		    				    InteractiveUi::Locations => {
+		    				    	let location_id = self.locations.current().unwrap().id;
+		    				    	self.location = Some(self.locations.current().unwrap().clone());
+		    				    	let realm_id = self.realm.as_ref().unwrap().id;
+		    				    	// request reset locations index, we set it back afterwards
+		    				    	let last_index = self.locations.current_index();
 	    							self.send_request(RealmsProtocol::Move(Move::ChangeLocation(realm_id, location_id)));
+	    							self.locations.at(last_index);
 		    				    },
 		    				    InteractiveUi::Realms => {
 			    					self.active_ui = InteractiveUi::Locations;
@@ -304,7 +348,7 @@ impl Periscope {
 		    				    	    	loaded = true;
 		    				    	    }
 		    				    	}
-
+	    				    		// only fetch realm when not already active
 		    				    	if !loaded {
 		    							self.send_request(RealmsProtocol::RequestRealm(realm_id));	
 		    				    	}
