@@ -6,9 +6,6 @@ use rand::{thread_rng, distributions::Uniform, Rng};
 pub enum RealmsProtocol {
     CONNECT(Option<usize>),
     REALM(Option<Vec<u8>>),
-    ISLAND(Option<Vec<u8>>),
-    EXPEDITION(Option<Vec<u8>>),
-    STATE(Option<Vec<u8>>),
     QUIT
 }
 

@@ -60,20 +60,6 @@ impl Universe {
 			    		self.realms.push(realm);
 			    		self.requests.push(request);
 			        },
-			        RealmsProtocol::ISLAND(_) => {
-			    		let island_bytes = serialize(&Island::new()).expect("could not serialize island.");
-						send_response(&RealmsProtocol::ISLAND(Some(island_bytes)), &stream)?;
-			    		self.requests.push(request);
-			        },
-			        RealmsProtocol::EXPEDITION(_) => {
-			    		let expedition_bytes = serialize(&Expedition::new()).expect("could not serialize expedition.");
-						send_response(&RealmsProtocol::EXPEDITION(Some(expedition_bytes)), &stream)?;
-			    		self.requests.push(request);
-			        },
-			        RealmsProtocol::STATE(_) => {
-			    		let state_bytes = serialize(&state()).expect("could not serialize state.");
-						send_response(&RealmsProtocol::STATE(Some(state_bytes)), &stream)?;
-			        },
 			        RealmsProtocol::QUIT => {
 						send_response(&RealmsProtocol::QUIT, &stream)?;
 						stream.shutdown(Shutdown::Both).expect("stream could not shut down.");
@@ -131,8 +117,4 @@ fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<RealmsProtocol>, 
                 .render(t, &chunks[1]);
         });
 	t.draw()
-}
-
-fn state() -> String {
-	"state not implemented yet.".to_string()
 }

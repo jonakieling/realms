@@ -11,7 +11,7 @@ use tui::backend::RawBackend;
 use termion::event;
 
 use tui::layout::{Direction, Group, Size};
-use tui::widgets::{Row, Table, Widget, Paragraph, Block, Borders, List, Item, SelectableList};
+use tui::widgets::{Widget, Paragraph, Block, Borders, List, Item, SelectableList};
 use tui::style::{Style, Color};
 
 use Event;
@@ -148,7 +148,7 @@ impl Periscope {
 			let evt = rx.recv().unwrap();
 			match evt {
 			    Event::Tick => {
-    				self.send_request(RealmsProtocol::STATE(None));
+    				// todo: pulling updates (also keep-alive)
 			    },
 			    Event::Input(key) => {
 			    	match key {
@@ -186,12 +186,6 @@ impl Periscope {
 			    		},
 			    		event::Key::Char('r') => {
 		    				self.send_request(RealmsProtocol::REALM(None));
-			    		},
-			    		event::Key::Char('i') => {
-		    				self.send_request(RealmsProtocol::ISLAND(None));
-			    		},
-			    		event::Key::Char('e') => {
-		    				self.send_request(RealmsProtocol::EXPEDITION(None));
 			    		},
 			    		event::Key::Char('q') => {
 		    				self.send_request(RealmsProtocol::QUIT);
@@ -233,22 +227,6 @@ impl Periscope {
 	    		self.locations = SelectionStorage::new_from(&realm.island.tiles);
 	    		self.explorers = SelectionStorage::new_from(&realm.expedition.explorers);
 	    		self.realm = Some(realm);
-	        },
-	        RealmsProtocol::ISLAND(Some(island)) => {
-	    		let island: Island = deserialize(&island).expect("could not deserialize island");
-	    		if let Some(ref mut realm) = self.realm {
-	    			realm.island = island;
-	    		}
-	        },
-	        RealmsProtocol::EXPEDITION(Some(expedition)) => {
-	    		let expedition: Expedition = deserialize(&expedition).expect("could not deserialize expedition");
-
-	    		if let Some(ref mut realm) = self.realm {
-	    			realm.expedition = expedition;
-	    		}
-	        },
-	        RealmsProtocol::STATE(Some(state)) => {
-	    		let _state: String = deserialize(&state).expect("could not deserialize state");
 	        },
 	        RealmsProtocol::QUIT => {
 				self.stream.shutdown(Shutdown::Both).expect("connection should have terminated.");
