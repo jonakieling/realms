@@ -49,6 +49,15 @@ impl<T: Clone> SelectionStorage<T> {
         }
     }
 
+    pub fn last(&mut self) -> Option<&T> {
+        if self.storage.len() != 0 {
+            self.current_selection = self.storage.len() - 1;
+            self.storage.get(self.current_selection)
+        } else {
+            None
+        }
+    }
+
     pub fn extract_current(&mut self) -> Option<T> {
         if self.storage.len() != 0 {
             let item = self.storage.get(self.current_selection).unwrap().clone();

@@ -58,7 +58,7 @@ impl Periscope {
 			
 			Group::default()
 		        .direction(Direction::Vertical)
-	    		.sizes(&[Size::Fixed(8), Size::Min(0)])
+	    		.sizes(&[Size::Fixed(6), Size::Min(0)])
 		        .render(t, &t_size, |t, main_chunks| {
 
 					Group::default()
@@ -67,7 +67,7 @@ impl Periscope {
 				        .render(t, &main_chunks[0], |t, chunks| {
 				        	Paragraph::default()
 						        .text(
-						            "request new realm with {mod=bold r}\nchange island with {mod=bold i}\nchange expedition with {mod=bold e}\nexit with {mod=bold q}\nselect with {mod=bold ↓↑}, switch with {mod=bold ←→}\n",
+						            "move cursor with {mod=bold ↓↑}\nswitch with {mod=bold → ←}\npick with {mod=bold Enter}\nexit with {mod=bold q}",
 						        ).block(Block::default().title("Abstract").borders(Borders::ALL))
 						        .render(t, &chunks[0]);
 			        		// end Paragraph::default()
@@ -96,67 +96,90 @@ impl Periscope {
 				                    format!("{}", explorer)
 				                }).collect();
 
-								Group::default()
-							        .direction(Direction::Horizontal)
-					        		.sizes(&[Size::Percent(30), Size::Percent(70)])
+				        		Group::default()
+							        .direction(Direction::Vertical)
+					        		.sizes(&[Size::Fixed(2), Size::Min(0)])
 							        .render(t, &main_chunks[1], |t, chunks| {
-							            let style = Style::default();
 
-							        	let mut border_style = Style::default();
-							        	if let InteractiveUi::Locations = self.active_ui {
-							        	    border_style = Style::default().fg(Color::Yellow);
-							        	}
+							        	Paragraph::default()
+									        .text(
+									            "switch to realms list with {mod=bold l}"
+									        ).block(Block::default())
+									        .render(t, &chunks[0]);
+						        		// end Paragraph::default()
 
-			                            SelectableList::default()
-			                                .block(Block::default().borders(Borders::ALL).title("Island").border_style(border_style))
-			                                .items(&locations)
-			                                .select(location_index)
-			                                .highlight_style(
-			                                    Style::default().fg(Color::Yellow),
-			                                )
-			                                .highlight_symbol("→")
-			                                .render(t, &chunks[0]);
-
-										Group::default()
-									        .direction(Direction::Vertical)
-							        		.sizes(&[Size::Percent(50), Size::Percent(50)])
+						        		Group::default()
+									        .direction(Direction::Horizontal)
+							        		.sizes(&[Size::Percent(30), Size::Percent(70)])
 									        .render(t, &chunks[1], |t, chunks| {
+									            let style = Style::default();
 
 									        	let mut border_style = Style::default();
-									        	if let InteractiveUi::Explorers = self.active_ui {
+									        	if let InteractiveUi::Locations = self.active_ui {
 									        	    border_style = Style::default().fg(Color::Yellow);
 									        	}
 
 					                            SelectableList::default()
-					                                .block(Block::default().borders(Borders::ALL).title("Expedition").border_style(border_style))
-					                                .items(&explorers)
-					                                .select(explorer_index)
+					                                .block(Block::default().borders(Borders::ALL).title("Island").border_style(border_style))
+					                                .items(&locations)
+					                                .select(location_index)
 					                                .highlight_style(
 					                                    Style::default().fg(Color::Yellow),
-					                                ).highlight_symbol("→")
+					                                )
+					                                .highlight_symbol("→")
 					                                .render(t, &chunks[0]);
 
-									        	let particularities = location.particularities.iter().map(|particularity| {
-									                Item::StyledData(
-									                    format!("{:?}", particularity),
-									                    &style
-									                )
-									            });
-									    		List::new(particularities)
-									                .block(Block::default().borders(Borders::ALL).title(&format!("{} {}", "Location", location)))
-									                .render(t, &chunks[1]);
-									        	// end List::new()
-									        // end Group::default()
-								        });
-						        	});
-				        		// end Group::default()
+												Group::default()
+											        .direction(Direction::Vertical)
+									        		.sizes(&[Size::Percent(50), Size::Percent(50)])
+											        .render(t, &chunks[1], |t, chunks| {
+
+											        	let mut border_style = Style::default();
+											        	if let InteractiveUi::Explorers = self.active_ui {
+											        	    border_style = Style::default().fg(Color::Yellow);
+											        	}
+
+							                            SelectableList::default()
+							                                .block(Block::default().borders(Borders::ALL).title("Expedition").border_style(border_style))
+							                                .items(&explorers)
+							                                .select(explorer_index)
+							                                .highlight_style(
+							                                    Style::default().fg(Color::Yellow),
+							                                ).highlight_symbol("→")
+							                                .render(t, &chunks[0]);
+											        	// end SelectableList::default()
+
+											        	let particularities = location.particularities.iter().map(|particularity| {
+											                Item::StyledData(
+											                    format!("{:?}", particularity),
+											                    &style
+											                )
+											            });
+											    		List::new(particularities)
+											                .block(Block::default().borders(Borders::ALL).title(&format!("{} {}", "Location", location)))
+											                .render(t, &chunks[1]);
+											        	// end List::new()
+											        // end Group::default()
+										        });
+								        	});
+						        		// end Group::default()
+
+							        });
+						        // end Group::default()
 					        }
 					    },
 					    InteractiveUi::Realms => {
 					    	Group::default()
-						        .direction(Direction::Horizontal)
-				        		.sizes(&[Size::Min(0)])
+						        .direction(Direction::Vertical)
+				        		.sizes(&[Size::Fixed(2), Size::Min(0)])
 						        .render(t, &main_chunks[1], |t, chunks| {
+						        	Paragraph::default()
+								        .text(
+								            "request new realm with {mod=bold r}"
+								        ).block(Block::default())
+								        .render(t, &chunks[0]);
+					        		// end Paragraph::default()
+
 						        	let border_style = Style::default().fg(Color::Yellow);
 
 						        	let realms_index = self.realms.current_index();
@@ -165,14 +188,15 @@ impl Periscope {
 					                }).collect();
 
 		                            SelectableList::default()
-		                                .block(Block::default().borders(Borders::ALL).title("Realms").border_style(border_style))
+		                                .block(Block::default().borders(Borders::ALL).title("Realms")
+	                                	.border_style(border_style))
 		                                .items(&realms)
 		                                .select(realms_index)
 		                                .highlight_style(
 		                                    Style::default().fg(Color::Yellow),
 		                                )
 		                                .highlight_symbol("→")
-		                                .render(t, &chunks[0]);
+		                                .render(t, &chunks[1]);
 					        		// end SelectableList::default()
 						        });
 					        // end Group::default()
@@ -199,7 +223,7 @@ impl Periscope {
 		    				    	self.explorers.prev();
 		    				    },
 		    				    InteractiveUi::Realms => {
-		    				    	self.realms.next();
+		    				    	self.realms.prev();
 		    				    }
 		    				}
 			    		},
@@ -233,6 +257,7 @@ impl Periscope {
 			    		event::Key::Char('r') => {
 		    				self.send_request(RealmsProtocol::RequestNewRealm);
 		    				self.send_request(RealmsProtocol::RequestRealmsList);
+		    				self.realms.last();
 			    		},
 			    		event::Key::Char('l') => {
 			    			self.active_ui = InteractiveUi::Realms;
