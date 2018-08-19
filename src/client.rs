@@ -101,12 +101,21 @@ impl Periscope {
 					        		.sizes(&[Size::Fixed(2), Size::Min(0)])
 							        .render(t, &main_chunks[1], |t, chunks| {
 
-							        	Paragraph::default()
-									        .text(
-									            "switch to realms list with {mod=bold l}"
-									        ).block(Block::default())
-									        .render(t, &chunks[0]);
-						        		// end Paragraph::default()
+						        		if let Some(ref realm) = self.realm {
+								        	Paragraph::default()
+										        .text(
+										            &format!("current realm {{mod=bold {}}}; switch to realms list with {{mod=bold l}}", realm.id)
+										        ).block(Block::default())
+										        .render(t, &chunks[0]);
+							        		// end Paragraph::default()
+						        		} else {
+								        	Paragraph::default()
+										        .text(
+										            "switch to realms list with {mod=bold l}"
+										        ).block(Block::default())
+										        .render(t, &chunks[0]);
+							        		// end Paragraph::default()
+						        		}
 
 						        		Group::default()
 									        .direction(Direction::Horizontal)
@@ -255,13 +264,18 @@ impl Periscope {
 		    				}
 			    		},
 			    		event::Key::Char('r') => {
-		    				self.send_request(RealmsProtocol::RequestNewRealm);
-		    				self.send_request(RealmsProtocol::RequestRealmsList);
-		    				self.realms.last();
+			    			match self.active_ui {
+		    				    InteractiveUi::Explorers => { },
+		    				    InteractiveUi::Locations => { },
+		    				    InteractiveUi::Realms => {
+				    				self.send_request(RealmsProtocol::RequestNewRealm);
+				    				self.send_request(RealmsProtocol::RequestRealmsList);
+				    				self.realms.last();
+		    				    }
+		    				}
 			    		},
 			    		event::Key::Char('l') => {
 			    			self.active_ui = InteractiveUi::Realms;
-		    				self.send_request(RealmsProtocol::RequestRealmsList);
 			    		},
 			    		event::Key::Char('\n') => {
 			    			match self.active_ui {
@@ -270,7 +284,16 @@ impl Periscope {
 		    				    InteractiveUi::Realms => {
 			    					self.active_ui = InteractiveUi::Locations;
 		    				    	let realm_id = self.realms.current_index();
-		    						self.send_request(RealmsProtocol::RequestRealm(realm_id));
+		    				    	let mut loaded = false;
+		    				    	if let Some(ref realm) = self.realm {
+		    				    	    if realm.id == realm_id {
+		    				    	    	loaded = true;
+		    				    	    }
+		    				    	}
+
+		    				    	if !loaded {
+		    							self.send_request(RealmsProtocol::RequestRealm(realm_id));	
+		    				    	}
 		    				    }
 		    				}
 			    		},

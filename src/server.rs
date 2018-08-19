@@ -10,9 +10,11 @@ use bincode::{serialize, deserialize};
 use tui::Terminal;
 use tui::backend::RawBackend;
 
+use chrono::{Local, DateTime};
+
 use tui::layout::{Direction, Group, Size};
 use tui::widgets::{List, Block, Borders, Item, Widget};
-use tui::style::{Style};
+use tui::style::{Style, Color};
 
 use tokens::*;
 
@@ -20,12 +22,28 @@ pub struct Universe {
 	pub listener: TcpListener,
 	pub realms: Vec<Realm>,
 	pub requests: Vec<(usize, RealmsProtocol)>,
-	pub clients: Vec<usize>
+	pub clients: Vec<Client>
+}
+
+pub struct Client {
+	id: usize,
+	connected: bool,
+	time: DateTime<Local>
+}
+
+impl Client {
+	pub fn new(id: usize) -> Client {
+		Client {
+			id,
+			connected: true,
+			time: Local::now()
+		}
+	}
 }
 
 impl Universe {
 	pub fn run(mut self, t: &mut Terminal<RawBackend>) -> Result<(), io::Error> {
-	    draw_dashboard(t, &self.requests, &self.clients)?;
+	    draw_dashboard(t, &self.requests, &self.clients, &self.realms)?;
 	    for stream in self.listener.incoming() {
 			let mut stream = stream.unwrap();
 			loop {
@@ -39,13 +57,14 @@ impl Universe {
 
 			    match request {
 			        RealmsProtocol::Register => {
-			        	let mut new_id = self.clients.len();
-			        	if let Some(current_highest) = self.clients.iter().max() {
-			        	    new_id = (current_highest + 1).max(new_id);
+			        	let mut high = 0;
+			        	for client in &self.clients {
+			        	    high = client.id.max(high);
 			        	}
-						send_response(&RealmsProtocol::Connect(new_id), &stream)?;
-						self.clients.push(new_id);
-			    		self.requests.push((client_id, request));
+			        	let mut id = self.clients.len().max(high);
+						send_response(&RealmsProtocol::Connect(id), &stream)?;
+						self.clients.push(Client::new(id));
+			    		self.requests.push((id, request));
 			        },
 			        RealmsProtocol::RequestRealmsList => {
 		        		let realms = self.realms.iter().map(|realm| {
@@ -89,13 +108,18 @@ impl Universe {
 						send_response(&RealmsProtocol::Quit, &stream)?;
 						stream.shutdown(Shutdown::Both).expect("stream could not shut down.");
 			    		self.requests.push((client_id, request));
+			    		for client in &mut self.clients {
+			    		    if client.id == client_id {
+			    		    	client.connected = false;
+			    		    }
+			    		}
 			    		// draw dashboard update before client exits
-			    		draw_dashboard(t, &self.requests, &self.clients)?;
+			    		draw_dashboard(t, &self.requests, &self.clients, &self.realms)?;
 			        	break;
 			        },
 			        _ => { }
 			    }
-			    draw_dashboard(t, &self.requests, &self.clients)?;
+			    draw_dashboard(t, &self.requests, &self.clients, &self.realms)?;
 			}
 	    }
 	    t.show_cursor().unwrap();
@@ -113,7 +137,7 @@ fn send_response(data: &RealmsProtocol, mut stream: &TcpStream) -> Result<(), io
 }
 
 
-fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<(usize, RealmsProtocol)>, clients: &Vec<usize>) -> Result<(), io::Error> {
+fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<(usize, RealmsProtocol)>, clients: &Vec<Client>, realms: &Vec<Realm>) -> Result<(), io::Error> {
 	let t_size = t.size().unwrap();
 
 	Group::default()
@@ -121,26 +145,57 @@ fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<(usize, RealmsPro
 		.sizes(&[Size::Percent(50), Size::Percent(50)])
         .render(t, &t_size, |t, chunks| {
             let style = Style::default();
+            let highlight = Style::default().fg(Color::Yellow);
+
         	let requests = requests.iter().rev().map(|(client, request)| {
-                Item::StyledData(
+        		match request {
+        		    RealmsProtocol::Register | RealmsProtocol::Connect(_) | RealmsProtocol::Quit => Item::StyledData(
                     format!("{} {}", client, request),
-                    &style
-                )
+	                    &highlight
+                	),
+        		    _ => Item::StyledData(
+                    format!("{} {}", client, request),
+	                    &style
+	                ),
+        		}
             });
         	let clients = clients.iter().rev().map(|client| {
-                Item::StyledData(
-                    format!("{}", client),
+        		match client.connected {
+        		    true => Item::StyledData(
+	                    format!("{} {}", client.id, client.time.format("%H:%M:%S %d.%m.%y")),
+	                    &highlight
+                	),
+        		    false => Item::StyledData(
+	                    format!("{} {}", client.id, client.time.format("%H:%M:%S %d.%m.%y")),
+	                    &style
+	                ),
+        		}
+            });
+        	let realms = realms.iter().rev().map(|realm| {
+        		Item::StyledData(
+                    format!("{}", realm.id),
                     &style
                 )
             });
 
     		List::new(requests)
-                .block(Block::default().borders(Borders::ALL).title("Realms Requests"))
+                .block(Block::default().borders(Borders::ALL).title("Requests"))
                 .render(t, &chunks[0]);
 
-    		List::new(clients)
-                .block(Block::default().borders(Borders::ALL).title("Realms Clients"))
-                .render(t, &chunks[1]);
+
+			Group::default()
+		        .direction(Direction::Vertical)
+				.sizes(&[Size::Percent(50), Size::Percent(50)])
+		        .render(t, &chunks[1], |t, chunks| {
+
+		    		List::new(clients)
+		                .block(Block::default().borders(Borders::ALL).title("Clients"))
+		                .render(t, &chunks[0]);
+
+		    		List::new(realms)
+		                .block(Block::default().borders(Borders::ALL).title("Realms"))
+		                .render(t, &chunks[1]);
+		        });
         });
 	t.draw()
 }
