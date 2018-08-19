@@ -290,7 +290,7 @@ impl Periscope {
 	}
 
 	pub fn send_request(&mut self, request: RealmsProtocol) {
-		let data = serialize(&request).expect("could not serialize data package for request.");
+		let data = serialize(&(self.id, request)).expect("could not serialize data package for request.");
 		self.stream.write(&data).expect("could not write to tcp stream.");
 		self.stream.flush().unwrap();
 		self.handle_response();

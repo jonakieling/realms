@@ -19,7 +19,7 @@ use tokens::*;
 pub struct Universe {
 	pub listener: TcpListener,
 	pub realms: Vec<Realm>,
-	pub requests: Vec<RealmsProtocol>,
+	pub requests: Vec<(usize, RealmsProtocol)>,
 	pub clients: Vec<usize>
 }
 
@@ -35,7 +35,7 @@ impl Universe {
 			    stream.flush().unwrap();
 
 
-			    let request: RealmsProtocol = deserialize(&buffer).expect("could not deserialize client request.");
+			    let (client_id, request): (usize, RealmsProtocol) = deserialize(&buffer).expect("could not deserialize client request.");
 
 			    match request {
 			        RealmsProtocol::Register => {
@@ -45,14 +45,14 @@ impl Universe {
 			        	}
 						send_response(&RealmsProtocol::Connect(new_id), &stream)?;
 						self.clients.push(new_id);
-			    		self.requests.push(request);
+			    		self.requests.push((client_id, request));
 			        },
 			        RealmsProtocol::RequestRealmsList => {
 		        		let realms = self.realms.iter().map(|realm| {
 		        			realm.id
 		        		}).collect();
 						send_response(&RealmsProtocol::RealmsList(realms), &stream)?;
-			    		self.requests.push(request);
+			    		self.requests.push((client_id, request));
 			        },
 			        RealmsProtocol::RequestNewRealm => {
 			        	let id = self.realms.len();
@@ -64,7 +64,7 @@ impl Universe {
 			    		};
 						send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 			    		self.realms.push(realm);
-			    		self.requests.push(request);
+			    		self.requests.push((client_id, request));
 			        },
 			        RealmsProtocol::RequestRealm(realm_id) => {
 			        	let realm;
@@ -83,12 +83,12 @@ impl Universe {
 							send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 				    		self.realms.push(realm);
 			        	}
-			    		self.requests.push(request);
+			    		self.requests.push((client_id, request));
 			        },
 			        RealmsProtocol::Quit => {
 						send_response(&RealmsProtocol::Quit, &stream)?;
 						stream.shutdown(Shutdown::Both).expect("stream could not shut down.");
-			    		self.requests.push(request);
+			    		self.requests.push((client_id, request));
 			    		// draw dashboard update before client exits
 			    		draw_dashboard(t, &self.requests, &self.clients)?;
 			        	break;
@@ -113,7 +113,7 @@ fn send_response(data: &RealmsProtocol, mut stream: &TcpStream) -> Result<(), io
 }
 
 
-fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<RealmsProtocol>, clients: &Vec<usize>) -> Result<(), io::Error> {
+fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<(usize, RealmsProtocol)>, clients: &Vec<usize>) -> Result<(), io::Error> {
 	let t_size = t.size().unwrap();
 
 	Group::default()
@@ -121,9 +121,9 @@ fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<RealmsProtocol>, 
 		.sizes(&[Size::Percent(50), Size::Percent(50)])
         .render(t, &t_size, |t, chunks| {
             let style = Style::default();
-        	let requests = requests.iter().rev().map(|request| {
+        	let requests = requests.iter().rev().map(|(client, request)| {
                 Item::StyledData(
-                    format!("{}", request),
+                    format!("{} {}", client, request),
                     &style
                 )
             });

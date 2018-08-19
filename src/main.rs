@@ -9,6 +9,8 @@ extern crate rand;
 extern crate tui;
 extern crate termion;
 
+extern crate chrono;
+
 use std::env;
 use std::io;
 use std::sync::mpsc;
