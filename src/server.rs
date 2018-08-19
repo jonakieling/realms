@@ -72,6 +72,11 @@ impl Universe {
 		        		}).collect();
 						send_response(&RealmsProtocol::RealmsList(realms), &stream)?;
 			    		self.requests.push((client_id, request));
+			    		for client in &mut self.clients {
+			    		    if client.id == client_id {
+			    		    	client.time = Local::now();
+			    		    }
+			    		}
 			        },
 			        RealmsProtocol::RequestNewRealm => {
 			        	let id = self.realms.len();
@@ -84,6 +89,11 @@ impl Universe {
 						send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 			    		self.realms.push(realm);
 			    		self.requests.push((client_id, request));
+			    		for client in &mut self.clients {
+			    		    if client.id == client_id {
+			    		    	client.time = Local::now();
+			    		    }
+			    		}
 			        },
 			        RealmsProtocol::RequestRealm(realm_id) => {
 			        	let realm;
@@ -103,6 +113,11 @@ impl Universe {
 				    		self.realms.push(realm);
 			        	}
 			    		self.requests.push((client_id, request));
+			    		for client in &mut self.clients {
+			    		    if client.id == client_id {
+			    		    	client.time = Local::now();
+			    		    }
+			    		}
 			        },
 			        RealmsProtocol::Quit => {
 						send_response(&RealmsProtocol::Quit, &stream)?;
@@ -111,6 +126,7 @@ impl Universe {
 			    		for client in &mut self.clients {
 			    		    if client.id == client_id {
 			    		    	client.connected = false;
+			    		    	client.time = Local::now();
 			    		    }
 			    		}
 			    		// draw dashboard update before client exits
