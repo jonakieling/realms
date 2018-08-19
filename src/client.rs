@@ -283,7 +283,7 @@ impl Periscope {
 		    				    InteractiveUi::Locations => { },
 		    				    InteractiveUi::Realms => {
 			    					self.active_ui = InteractiveUi::Locations;
-		    				    	let realm_id = self.realms.current_index();
+		    				    	let realm_id = *self.realms.current().unwrap();
 		    				    	let mut loaded = false;
 		    				    	if let Some(ref realm) = self.realm {
 		    				    	    if realm.id == realm_id {
