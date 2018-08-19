@@ -4,9 +4,14 @@ use rand::{thread_rng, distributions::Uniform, Rng};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum RealmsProtocol {
-    CONNECT(Option<usize>),
-    REALM(Option<Vec<u8>>),
-    QUIT
+    Register,
+    Connect(usize),
+    RequestRealmsList,
+    RealmsList(Vec<usize>),
+    RequestNewRealm,
+    RequestRealm(usize),
+    Realm(Realm),
+    Quit
 }
 
 impl fmt::Display for RealmsProtocol {
@@ -15,7 +20,7 @@ impl fmt::Display for RealmsProtocol {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Island {
     pub tiles: Vec<Tile>
 }
@@ -81,7 +86,7 @@ pub enum Particularity {
 	Carravan
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Expedition {
     pub explorers: Vec<Explorer>,
     pub gear: Vec<Gear>
@@ -110,13 +115,13 @@ impl fmt::Display for Explorer {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Gear {
     Tent,
     Tools
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Realm {
     pub island: Island,
     pub expedition: Expedition,

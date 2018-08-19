@@ -38,16 +38,23 @@ impl Universe {
 			    let request: RealmsProtocol = deserialize(&buffer).expect("could not deserialize client request.");
 
 			    match request {
-			        RealmsProtocol::CONNECT(_) => {
+			        RealmsProtocol::Register => {
 			        	let mut new_id = self.clients.len();
 			        	if let Some(current_highest) = self.clients.iter().max() {
 			        	    new_id = (current_highest + 1).max(new_id);
 			        	}
-						send_response(&RealmsProtocol::CONNECT(Some(new_id)), &stream)?;
+						send_response(&RealmsProtocol::Connect(new_id), &stream)?;
 						self.clients.push(new_id);
 			    		self.requests.push(request);
 			        },
-			        RealmsProtocol::REALM(_) => {
+			        RealmsProtocol::RequestRealmsList => {
+		        		let realms = self.realms.iter().map(|realm| {
+		        			realm.id
+		        		}).collect();
+						send_response(&RealmsProtocol::RealmsList(realms), &stream)?;
+			    		self.requests.push(request);
+			        },
+			        RealmsProtocol::RequestNewRealm => {
 			        	let id = self.realms.len();
 			        	let realm = Realm {
 			    			island: Island::new(),
@@ -55,19 +62,38 @@ impl Universe {
 			    			id,
 			    			age: 0
 			    		};
-			    		let realm_bytes = serialize(&realm).expect("could not serialize realm.");
-						send_response(&RealmsProtocol::REALM(Some(realm_bytes)), &stream)?;
+						send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 			    		self.realms.push(realm);
 			    		self.requests.push(request);
 			        },
-			        RealmsProtocol::QUIT => {
-						send_response(&RealmsProtocol::QUIT, &stream)?;
+			        RealmsProtocol::RequestRealm(realm_id) => {
+			        	let realm;
+			        	if self.realms.len() > realm_id {
+			        	    realm = self.realms[realm_id].clone();
+							send_response(&RealmsProtocol::Realm(realm), &stream)?;
+			        	} else {
+			        		// send new realm on miss
+				        	let id = self.realms.len();
+				        	realm = Realm {
+				    			island: Island::new(),
+				    			expedition: Expedition::new(),
+				    			id,
+				    			age: 0
+				    		};
+							send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
+				    		self.realms.push(realm);
+			        	}
+			    		self.requests.push(request);
+			        },
+			        RealmsProtocol::Quit => {
+						send_response(&RealmsProtocol::Quit, &stream)?;
 						stream.shutdown(Shutdown::Both).expect("stream could not shut down.");
 			    		self.requests.push(request);
 			    		// draw dashboard update before client exits
 			    		draw_dashboard(t, &self.requests, &self.clients)?;
 			        	break;
-			        }
+			        },
+			        _ => { }
 			    }
 			    draw_dashboard(t, &self.requests, &self.clients)?;
 			}
