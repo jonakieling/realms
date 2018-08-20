@@ -5,6 +5,7 @@ use rand::{thread_rng, distributions::Uniform, Rng};
 pub type ClientId = usize;
 pub type RealmId = usize;
 pub type TileId = usize;
+pub type ExplorerId = usize;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RealmsProtocol {
@@ -22,7 +23,7 @@ pub enum RealmsProtocol {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Move {
-    ChangeLocation(RealmId, TileId),
+    ChangeLocation(RealmId, TileId, ExplorerId),
     Action(RealmId, TileId, ExplorerAction)
 }
 
@@ -128,27 +129,45 @@ pub struct Expedition {
 impl Expedition {
     pub fn new() -> Expedition {
         Expedition {
-            explorers: vec![Explorer::Ranger, Explorer::Cartographer, Explorer::Engineer, Explorer::Sailor],
+            explorers: vec![Explorer { id: 0, variant: ExplorerVariant::Ranger, location: None }, Explorer { id: 1, variant: ExplorerVariant::Cartographer, location: None }, Explorer { id: 2, variant: ExplorerVariant::Engineer, location: None }, Explorer { id: 3, variant: ExplorerVariant::Sailor, location: None }],
             gear: vec![Gear::Tent, Gear::Tools]
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum Explorer {
+pub struct Explorer {
+    pub id: ExplorerId,
+    pub variant: ExplorerVariant,
+    pub location: Option<TileId>
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum ExplorerVariant {
     Ranger,
     Cartographer,
     Engineer,
     Sailor
 }
 
+impl fmt::Display for ExplorerVariant {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ExplorerVariant::Ranger => write!(f, "Ranger"),
+            ExplorerVariant::Cartographer => write!(f, "Cartographer"),
+            ExplorerVariant::Engineer => write!(f, "Engineer"),
+            ExplorerVariant::Sailor => write!(f, "Sailor")
+        }
+    }
+}
+
 impl Explorer {
     pub fn action(&self) -> ExplorerAction {
-        match self {
-            Explorer::Ranger => ExplorerAction::Hunt,
-            Explorer::Cartographer => ExplorerAction::Map,
-            Explorer::Engineer => ExplorerAction::Build,
-            Explorer::Sailor => ExplorerAction::Sail
+        match self.variant {
+            ExplorerVariant::Ranger => ExplorerAction::Hunt,
+            ExplorerVariant::Cartographer => ExplorerAction::Map,
+            ExplorerVariant::Engineer => ExplorerAction::Build,
+            ExplorerVariant::Sailor => ExplorerAction::Sail
         }
     }
 }
@@ -169,7 +188,6 @@ pub enum Gear {
 pub struct Realm {
     pub island: Island,
     pub expedition: Expedition,
-    pub client_locations: Vec<(ClientId, TileId)>,
     pub id: RealmId,
     pub age: usize
 }
@@ -180,8 +198,7 @@ impl Realm {
             island: Island::new(),
             expedition: Expedition::new(),
             id,
-            age: 0,
-            client_locations: vec![]
+            age: 0
         }
     }
 }

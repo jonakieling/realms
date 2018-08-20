@@ -108,22 +108,15 @@ impl Universe {
 			    		    }
 			    		}
 			        },
-			        RealmsProtocol::Move(Move::ChangeLocation(realm_id, tile_id)) => {
+			        RealmsProtocol::Move(Move::ChangeLocation(realm_id, tile_id, explorer_id)) => {
 			        	for realm in &mut self.realms {
 			        	    if realm_id == realm.id {
-			        	    	let mut remove_index = 0;
-			        	    	let mut remove = false;
-					        	for (index, (client, _)) in realm.client_locations.iter().enumerate() {
-					        	    if client == &client_id {
-					        	        remove_index = index;
-					        	        remove = true;
-					        	    }
-					        	}
+			        	    	for explorer in &mut realm.expedition.explorers {
+			        	    		if explorer.id == explorer_id {
+			        	    			explorer.location = Some(tile_id);
+			        	    		}
 
-					        	if remove {
-					        		realm.client_locations.remove(remove_index);
-					        	}
-			        	    	realm.client_locations.push((client_id, tile_id));
+			        	    	}
 								send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 			        	    }
 			        	}
@@ -228,7 +221,7 @@ fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, Realms
             });
         	let realms = realms.iter().rev().map(|realm| {
         		Item::StyledData(
-                    format!("{} {:?}", realm.id, realm.client_locations),
+                    format!("{}", realm.id),
                     &style
                 )
             });
