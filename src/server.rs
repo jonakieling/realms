@@ -122,32 +122,51 @@ impl Universe {
 			        	}
 			    		self.requests.push((client_id, request));
 			        },
-			        RealmsProtocol::Move(Move::Action(realm_id, tile_id, action)) => {
+			        RealmsProtocol::Move(Move::Action(realm_id, tile_id, explorer_id, action)) => {
+    	    			let mut allowed = false;
 			        	for realm in &mut self.realms {
 			        	    if realm_id == realm.id {
 		        	    		for location in &mut realm.island.tiles {
 			        	    		if tile_id == location.id {
-		        	    				match action {
-		        	    				    ExplorerAction::Build => {
-		        	    				    	location.buildings.push("\u{2302}".to_string());
-		        	    				    },
-		        	    				    ExplorerAction::Map => {
-		        	    				    	location.mapped = true;
-		        	    				    },
-		        	    				    ExplorerAction::Hunt => {
-		        	    				    	if location.resources > 0 {
-		        	    				    		location.resources -= 1;
-		        	    				    	}
-		        	    				    },
-		        	    				    ExplorerAction::Sail => {},
-		        	    				    ExplorerAction::Wait => {}
-		        	    				}
+			        	    			for explorer in &mut realm.expedition.explorers {
+					        	    		if explorer.id == explorer_id {
+					        	    			if let Some(explorer_location) = explorer.location {
+					        	    				if explorer_location == tile_id {
+					        	    					allowed = true;
+					        	    				}
+					        	    			}
+					        	    		}
+
+					        	    	}
+					        	    	if allowed {
+			        	    				match action {
+			        	    				    ExplorerAction::Build => {
+			        	    				    	location.buildings.push("\u{2302}".to_string());
+			        	    				    },
+			        	    				    ExplorerAction::Map => {
+			        	    				    	location.mapped = true;
+			        	    				    },
+			        	    				    ExplorerAction::Hunt => {
+			        	    				    	if location.resources > 0 {
+			        	    				    		location.resources -= 1;
+			        	    				    	}
+			        	    				    },
+			        	    				    ExplorerAction::Sail => {},
+			        	    				    ExplorerAction::Wait => {}
+			        	    				}
+					        	    	}
 			        	    		}
 		        	    		}
-								send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
+					        	if allowed {
+									send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
+					        	} else {
+									send_response(&RealmsProtocol::Void, &stream)?;
+					        	}
 			        	    }
 			        	}
-			    		self.requests.push((client_id, RealmsProtocol::Move(Move::Action(realm_id, tile_id, action))));
+			        	if allowed {
+			    			self.requests.push((client_id, RealmsProtocol::Move(Move::Action(realm_id, tile_id, explorer_id, action))));
+			        	}
 			        },
 			        RealmsProtocol::Quit => {
 						send_response(&RealmsProtocol::Quit, &stream)?;

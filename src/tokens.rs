@@ -24,7 +24,7 @@ pub enum RealmsProtocol {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Move {
     ChangeLocation(RealmId, TileId, ExplorerId),
-    Action(RealmId, TileId, ExplorerAction)
+    Action(RealmId, TileId, ExplorerId, ExplorerAction)
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

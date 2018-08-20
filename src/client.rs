@@ -63,15 +63,18 @@ impl Periscope {
 		periscope
 	}
 
-	pub fn run(mut self, t: &mut Terminal<RawBackend>, rx: &Receiver<Event>) -> Result<(), io::Error> {
+	pub fn run(mut self, terminal: &mut Terminal<RawBackend>, rx: &Receiver<Event>) -> Result<(), io::Error> {
 		loop {
 
 			if !handle_events(rx, &mut self.stream, &mut self.data) {
 				break;
 			}
 
-			draw(t, &mut self.data)?;
+			draw(terminal, &mut self.data)?;
 		}
+
+	    terminal.show_cursor().unwrap();
+	    terminal.clear().unwrap();
 
 	    Ok(())
 	}
@@ -299,7 +302,7 @@ fn explorer_action(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, 
 
 	if let Some(location) = locations.current() {
 		if let Some(explorer) = explorers.current() {
-			request = send_request(stream, client, RealmsProtocol::Move(Move::Action(realm_id, location.id, explorer.action())));
+			request = send_request(stream, client, RealmsProtocol::Move(Move::Action(realm_id, location.id, explorer.id, explorer.action())));
 		}
 	}
 
