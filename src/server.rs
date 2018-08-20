@@ -45,12 +45,12 @@ impl Universe {
 	pub fn run(mut self, t: &mut Terminal<RawBackend>) -> Result<(), io::Error> {
 	    draw_dashboard(t, &self.requests, &self.clients, &self.realms)?;
 	    for stream in self.listener.incoming() {
-			let mut stream = stream.unwrap();
+			let mut stream = stream.expect("could not get tcp stream.");
 			loop {
 			    let mut buffer = [0; 1024];
 
-			    stream.read(&mut buffer).unwrap();
-			    stream.flush().unwrap();
+			    stream.read(&mut buffer).expect("could not read request into buffer.");
+			    stream.flush().expect("could not flush request stream.");
 
 			    let (client_id, request): (ClientId, RealmsProtocol) = deserialize(&buffer).expect("could not deserialize client request.");
 
@@ -164,7 +164,7 @@ impl Universe {
 			        	break;
 			        },
 			        _ => {
-						send_response(&RealmsProtocol::NotImplemented, &stream)?;
+						send_response(&RealmsProtocol::Void, &stream)?;
 					}
 			    }
 			    draw_dashboard(t, &self.requests, &self.clients, &self.realms)?;
@@ -180,7 +180,7 @@ impl Universe {
 fn send_response(data: &RealmsProtocol, mut stream: &TcpStream) -> Result<(), io::Error> {
 	let raw = serialize(data).expect("could not serialize data for response.");
 	stream.write(&raw).expect("could not write to tcp stream.");
-	stream.flush().unwrap();
+	stream.flush().expect("could not flush response stream.");
 	Ok(())
 }
 

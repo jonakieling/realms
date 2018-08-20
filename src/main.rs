@@ -25,6 +25,7 @@ use termion::event;
 use termion::input::TermRead;
 
 mod client;
+mod client_dashboard;
 mod server;
 mod tokens;
 mod utility;

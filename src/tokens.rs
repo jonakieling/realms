@@ -18,7 +18,7 @@ pub enum RealmsProtocol {
     Realm(Realm),
     Move(Move),
     Quit,
-    NotImplemented
+    Void
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
