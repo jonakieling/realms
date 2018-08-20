@@ -156,7 +156,7 @@ fn draw_realm_ui(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 
 			Group::default()
 		        .direction(Direction::Vertical)
-	    		.sizes(&[Size::Fixed(8), Size::Min(0)])
+	    		.sizes(&[Size::Fixed(8), Size::Fixed(10), Size::Min(0)])
 		        .render(t, &chunks[1], |t, chunks| {
 					draw_realm_expedition(t, &chunks[0], &data);
 					if let InteractiveUi::Explorers = data.active {
@@ -174,6 +174,14 @@ fn draw_realm_ui(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 		        	} else {
 						draw_realm_location(t, &chunks[1], &data);
 		        	}
+
+                    Paragraph::default()
+                        .text(
+                            "placeholder"
+                        ).block(Block::default().title("Briefing").borders(Borders::ALL).border_style(Style::default().fg(Color::Gray)))
+                        .wrap(true)
+                        .render(t, &chunks[2]);
+                    // end Paragraph::default() 
 	        	});
 	        // end Group::default()
 		});
