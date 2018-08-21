@@ -131,10 +131,10 @@ impl Expedition {
     pub fn new() -> Expedition {
         Expedition {
             explorers: vec![
-                Explorer { id: 0, traits: vec![ExplorerTrait::Ranger], region: None, inventory: vec![] },
-                Explorer { id: 1, traits: vec![ExplorerTrait::Cartographer], region: None, inventory: vec![] },
-                Explorer { id: 2, traits: vec![ExplorerTrait::Engineer], region: None, inventory: vec![] },
-                Explorer { id: 3, traits: vec![ExplorerTrait::Sailor], region: None, inventory: vec![] }
+                Explorer { id: 0, traits: vec![ExplorerTrait::Ranger], region: None, inventory: vec![Gear::SurvivalKit] },
+                Explorer { id: 1, traits: vec![ExplorerTrait::Cartographer], region: None, inventory: vec![Gear::ClimbingGear] },
+                Explorer { id: 2, traits: vec![ExplorerTrait::Engineer], region: None, inventory: vec![Gear::HotAirBalloon] },
+                Explorer { id: 3, traits: vec![ExplorerTrait::Sailor], region: None, inventory: vec![Gear::Boat] }
             ]
         }
     }

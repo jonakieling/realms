@@ -20,8 +20,11 @@ use client_dashboard::draw;
 pub enum InteractiveUi {
 	Regions,
 	Explorers,
+	ExplorerSelect,
 	Realms,
-	MoveRegions
+	ExplorerMove,
+	ExplorerActions,
+	ExplorerInventory
 }
 
 #[derive(Debug)]
@@ -31,7 +34,16 @@ pub struct Data {
 	pub realms: SelectionStorage<RealmId>,
 	pub regions: SelectionStorage<Region>,
 	pub explorers: SelectionStorage<Explorer>,
+	pub explorer_select: SelectionStorage<ExplorerSelect>,
+	pub explorer_inventory: SelectionStorage<Gear>,
 	pub active: InteractiveUi
+}
+
+#[derive(Debug, Clone)]
+pub enum ExplorerSelect {
+	Inventory,
+	Actions,
+	Move
 }
 
 pub struct Periscope {
@@ -49,6 +61,8 @@ impl Periscope {
 				realms: SelectionStorage::new(),
 				regions: SelectionStorage::new(),
 				explorers: SelectionStorage::new(),
+				explorer_select: SelectionStorage::new_from(&vec![ExplorerSelect::Inventory, ExplorerSelect::Actions, ExplorerSelect::Move]),
+				explorer_inventory: SelectionStorage::new(),
 				active: InteractiveUi::Realms
 			}
 		};
@@ -111,11 +125,20 @@ fn handle_events(rx: &Receiver<Event>, stream: &mut TcpStream, data: &mut Data) 
 			    InteractiveUi::Explorers => {
 			    	handle_explorer_events(stream, data, key);
 			    },
+			    InteractiveUi::ExplorerSelect => {
+			    	handle_explorer_select_events(stream, data, key);
+			    },
 			    InteractiveUi::Realms => {
 			    	handle_realms_events(stream, data, key);
 			    },
-			    InteractiveUi::MoveRegions => {
-			    	handle_move_regions_events(stream, data, key);
+			    InteractiveUi::ExplorerMove => {
+			    	handle_explorer_move_events(stream, data, key);
+			    },
+			    InteractiveUi::ExplorerActions => {
+			    	handle_explorer_actions_events(stream, data, key);
+			    },
+			    InteractiveUi::ExplorerInventory => {
+			    	handle_explorer_inventory_events(stream, data, key);
 			    }
 			}
 
@@ -188,7 +211,7 @@ fn handle_regions_events(_stream: &mut TcpStream, data: &mut Data, key: event::K
         	sync_regions_with_explorer(data);
 		},
 		event::Key::Left => {
-	    	data.active = InteractiveUi::MoveRegions;
+	    	data.active = InteractiveUi::ExplorerSelect;
         	sync_regions_with_explorer(data);
 		},
 		event::Key::Char('l') => {
@@ -198,7 +221,73 @@ fn handle_regions_events(_stream: &mut TcpStream, data: &mut Data, key: event::K
 	}
 }
 
-fn handle_move_regions_events(stream: &mut TcpStream, data: &mut Data, key: event::Key) {
+fn handle_explorer_events(_stream: &mut TcpStream, data: &mut Data, key: event::Key) {
+	match key {
+		event::Key::Up => {
+	    	data.explorers.prev();
+        	sync_regions_with_explorer(data);
+		},
+		event::Key::Down => {
+	    	data.explorers.next();
+        	sync_regions_with_explorer(data);
+		},
+		event::Key::Right => {
+	    	data.active = InteractiveUi::ExplorerSelect;
+		},
+		event::Key::Left => {
+	    	data.active = InteractiveUi::Regions;
+	    	data.regions.at(0);
+		},
+		event::Key::Char('l') => {
+			data.active = InteractiveUi::Realms;
+		},
+		event::Key::Char('a') => {
+			data.active = InteractiveUi::ExplorerActions;
+		},
+		event::Key::Char('i') => {
+			data.active = InteractiveUi::ExplorerInventory;
+		},
+		event::Key::Char('m') => {
+			data.active = InteractiveUi::ExplorerMove;
+		},
+		event::Key::Char('\n') => {
+		},
+		_ => { }
+	}
+}
+
+fn handle_explorer_select_events(_stream: &mut TcpStream, data: &mut Data, key: event::Key) {
+	match key {
+		event::Key::Up => {
+	    	data.explorer_select.prev();
+		},
+		event::Key::Down => {
+	    	data.explorer_select.next();
+		},
+		event::Key::Left => {
+	    	data.active = InteractiveUi::Explorers;
+		},
+		event::Key::Char('l') => {
+			data.active = InteractiveUi::Realms;
+		},
+		event::Key::Right => {
+			match data.explorer_select.current() {
+			    Some(ExplorerSelect::Inventory) => {
+		        	if let Some(ref explorer) = &data.explorers.current() {
+		        	    data.explorer_inventory = SelectionStorage::new_from(&explorer.inventory);
+		        	}
+		        	data.active = InteractiveUi::ExplorerInventory;
+			    },
+			    Some(ExplorerSelect::Actions) => data.active = InteractiveUi::ExplorerActions,
+			    Some(ExplorerSelect::Move) => data.active = InteractiveUi::ExplorerMove,
+			    None => data.active = InteractiveUi::Explorers
+			};
+		},
+		_ => { }
+	}
+}
+
+fn handle_explorer_move_events(stream: &mut TcpStream, data: &mut Data, key: event::Key) {
 	match key {
 		event::Key::Up => {
 	    	data.regions.prev();
@@ -206,13 +295,8 @@ fn handle_move_regions_events(stream: &mut TcpStream, data: &mut Data, key: even
 		event::Key::Down => {
 	    	data.regions.next();
 		},
-		event::Key::Right => {
-	    	data.active = InteractiveUi::Regions;
-	    	data.regions.at(0);
-		},
-		event::Key::Left => {
-	    	data.active = InteractiveUi::Explorers;
-        	sync_regions_with_explorer(data);
+		event::Key::Esc => {
+	    	data.active = InteractiveUi::ExplorerSelect;
 		},
 		event::Key::Char('l') => {
 			data.active = InteractiveUi::Realms;
@@ -234,29 +318,20 @@ fn handle_move_regions_events(stream: &mut TcpStream, data: &mut Data, key: even
 				data.explorers.at(last_explorers_index);
     		}
         	sync_regions_with_explorer(data);
-	    	data.active = InteractiveUi::Explorers;
+	    	data.active = InteractiveUi::ExplorerSelect;
 		},
 		_ => { }
 	}
 }
 
-fn handle_explorer_events(stream: &mut TcpStream, data: &mut Data, key: event::Key) {
+fn handle_explorer_actions_events(stream: &mut TcpStream, data: &mut Data, key: event::Key) {
 	match key {
 		event::Key::Up => {
-	    	data.explorers.prev();
-        	sync_regions_with_explorer(data);
 		},
 		event::Key::Down => {
-	    	data.explorers.next();
-        	sync_regions_with_explorer(data);
 		},
-		event::Key::Right => {
-	    	data.active = InteractiveUi::MoveRegions;
-        	sync_regions_with_explorer(data);
-		},
-		event::Key::Left => {
-	    	data.active = InteractiveUi::Regions;
-	    	data.regions.at(0);
+		event::Key::Esc => {
+	    	data.active = InteractiveUi::ExplorerSelect;
 		},
 		event::Key::Char('l') => {
 			data.active = InteractiveUi::Realms;
@@ -278,6 +353,24 @@ fn handle_explorer_events(stream: &mut TcpStream, data: &mut Data, key: event::K
 				data.explorers.at(last_explorers_index);
     		}
         	sync_regions_with_explorer(data);
+		},
+		_ => { }
+	}
+}
+
+fn handle_explorer_inventory_events(_stream: &mut TcpStream, data: &mut Data, key: event::Key) {
+	match key {
+		event::Key::Up => {
+		},
+		event::Key::Down => {
+		},
+		event::Key::Esc => {
+	    	data.active = InteractiveUi::ExplorerSelect;
+		},
+		event::Key::Char('l') => {
+			data.active = InteractiveUi::Realms;
+		},
+		event::Key::Char('\n') => {
 		},
 		_ => { }
 	}
