@@ -14,7 +14,7 @@ pub fn draw(terminal: &mut Terminal<RawBackend>, data: &mut Data) -> Result<(), 
 			
 	Group::default()
         .direction(Direction::Vertical)
-		.sizes(&[Size::Fixed(6), Size::Min(0)])
+		.sizes(&[Size::Fixed(4), Size::Min(0)])
         .render(terminal, &terminal_area, |t, chunks| {
 
         	draw_header(t, &chunks[0], &data);
@@ -42,7 +42,7 @@ fn draw_header(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
         .render(t, area, |t, chunks| {
         	Paragraph::default()
 		        .text(
-		            "move cursor with {mod=bold ↓↑}\nswitch with {mod=bold → ←}\npick with {mod=bold Enter}\nexit with {mod=bold q}",
+		            "move cursor with {mod=bold ↑→↓←}\nexit with {mod=bold q}",
 		        ).block(Block::default().title("Abstract").borders(Borders::ALL))
 		        .render(t, &chunks[0]);
     		// end Paragraph::default()
@@ -106,22 +106,13 @@ fn draw_realm(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
     // end Group::default()
 }
 
-fn draw_realm_info(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
-	if let Some(ref realm) = data.realm {
-    	Paragraph::default()
-	        .text(
-	            &format!("current realm {{mod=bold {}}}; switch to realms list with {{mod=bold l}}", realm.id)
-	        ).block(Block::default())
-	        .render(t, area);
-		// end Paragraph::default()
-	} else {
-    	Paragraph::default()
-	        .text(
-	            "switch to realms list with {mod=bold l}"
-	        ).block(Block::default())
-	        .render(t, area);
-		// end Paragraph::default()
-	}
+fn draw_realm_info(t: &mut Terminal<RawBackend>, area: &Rect, _data: &Data) {
+    Paragraph::default()
+        .text(
+            "switch to realms list with {mod=bold l}"
+        ).block(Block::default())
+        .render(t, area);
+    // end Paragraph::default()
 }
 
 
@@ -144,8 +135,15 @@ fn draw_realm_ui(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 	    	if let InteractiveUi::Regions = data.active {
 	    	    regions_list_style = Style::default().fg(Color::Yellow);
 	    	}
+            let mut island_title = "Island".to_string();
+            if let Some(ref realm) = data.realm {
+                island_title = format!("Island {}", realm.id.clone());
+            }
 	        SelectableList::default()
-	            .block(Block::default().borders(Borders::ALL).title("Island").border_style(border_style))
+	            .block(Block::default().borders(Borders::ALL).title(
+                    &island_title
+                )
+                .border_style(border_style))
 	            .items(&regions)
 	            .select(region_index)
 	            .highlight_style(
@@ -273,7 +271,7 @@ fn draw_realm_expedition_list(t: &mut Terminal<RawBackend>, area: &Rect, data: &
     match data.active {
         InteractiveUi::Explorers => {
             SelectableList::default()
-                .block(Block::default().borders(Borders::ALL).title("Expedition").border_style(Style::default().fg(Color::Yellow)))
+                .block(Block::default().borders(Borders::ALL).title("Expedition [Enter]").border_style(Style::default().fg(Color::Yellow)))
                 .items(&explorers)
                 .select(explorer_index)
                 .highlight_style(
@@ -367,7 +365,7 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
         },
         InteractiveUi::ExplorerSelect => {
             SelectableList::default()
-                .block(Block::default().borders(Borders::ALL).title("Explorer").border_style(Style::default().fg(Color::Yellow)))
+                .block(Block::default().borders(Borders::ALL).title("Explorer [Enter]").border_style(Style::default().fg(Color::Yellow)))
                 .items(&explorer_select)
                 .select(explorer_select_index)
                 .highlight_style(
@@ -389,7 +387,7 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
             } else {
                 Paragraph::default()
                     .text(
-                        "select an explorer from the expedition to move them and make actions."
+                        "select an explorer from the expedition to give orders."
                     ).block(Block::default().borders(Borders::ALL).title("Explorer").border_style(Style::default()))
                     .wrap(true)
                     .render(t, area);

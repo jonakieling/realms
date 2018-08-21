@@ -231,7 +231,7 @@ fn handle_explorer_events(_stream: &mut TcpStream, data: &mut Data, key: event::
 	    	data.explorers.next();
         	sync_regions_with_explorer(data);
 		},
-		event::Key::Right => {
+		event::Key::Right | event::Key::Char('\n') => {
 	    	data.active = InteractiveUi::ExplorerSelect;
 		},
 		event::Key::Left => {
@@ -250,8 +250,6 @@ fn handle_explorer_events(_stream: &mut TcpStream, data: &mut Data, key: event::
 		event::Key::Char('m') => {
 			data.active = InteractiveUi::ExplorerMove;
 		},
-		event::Key::Char('\n') => {
-		},
 		_ => { }
 	}
 }
@@ -267,10 +265,14 @@ fn handle_explorer_select_events(_stream: &mut TcpStream, data: &mut Data, key: 
 		event::Key::Left => {
 	    	data.active = InteractiveUi::Explorers;
 		},
+		event::Key::Right => {
+	    	data.active = InteractiveUi::Regions;
+	    	data.regions.at(0);
+		},
 		event::Key::Char('l') => {
 			data.active = InteractiveUi::Realms;
 		},
-		event::Key::Right => {
+		event::Key::Char('\n') => {
 			match data.explorer_select.current() {
 			    Some(ExplorerSelect::Inventory) => {
 		        	if let Some(ref explorer) = &data.explorers.current() {
