@@ -60,15 +60,91 @@ impl Island {
                 _ => Terrain::Mountain,
             };
 
-            let how_many_particularities = rng2.sample(&Uniform::new_inclusive(0, 1));
+            // Town
+            // River
+            // Carravan
+            // Merchant
+            // Camp
+            // Gear(Gear)
+            // Canyon
+            // Bolders
+            // Grasland
+            // Creek
+            // Grove
+            // Cliffs
+            // Island
+            // Lake
+            // Pond
+            // Clearing
+            let particularities: Vec<Particularity> = match terrain {
+                Terrain::Coast => {
+                    let how_many_particularities = rng2.sample(&Uniform::new_inclusive(1, 2));
 
-            let particularities: Vec<Particularity> = rng2.sample_iter(&Uniform::new_inclusive(1, 3)).take(how_many_particularities).map(|number| {
-                match number {
-                    1 => Particularity::Town,
-                    2 => Particularity::River,
-                    _ => Particularity::Carravan
+                    rng2.sample_iter(&Uniform::new_inclusive(1, 8)).take(how_many_particularities).map(|number| {
+                        match number {
+                            1 => Particularity::Town,
+                            2 => Particularity::River,
+                            3 => Particularity::Cliffs,
+                            4 => Particularity::Cliffs,
+                            5 => Particularity::Cliffs,
+                            6 => Particularity::Island,
+                            7 => Particularity::Island,
+                            _ => Particularity::Carravan
+                        }
+                    }).collect()
+                },
+                Terrain::Planes => {
+                    let how_many_particularities = rng2.sample(&Uniform::new_inclusive(1, 3));
+
+                    rng2.sample_iter(&Uniform::new_inclusive(1, 10)).take(how_many_particularities).map(|number| {
+                        match number {
+                            1 => Particularity::Town,
+                            2 => Particularity::Merchant,
+                            3 => Particularity::Grove,
+                            4 => Particularity::Grove,
+                            5 => Particularity::Creek,
+                            6 => Particularity::Grasland,
+                            7 => Particularity::Grasland,
+                            8 => Particularity::Grasland,
+                            9 => Particularity::River,
+                            _ => Particularity::Carravan
+                        }
+                    }).collect()
+                },
+                Terrain::Forest => {
+                    let how_many_particularities = rng2.sample(&Uniform::new_inclusive(0, 2));
+
+                    rng2.sample_iter(&Uniform::new_inclusive(1, 9)).take(how_many_particularities).map(|number| {
+                        match number {
+                            1 => Particularity::Town,
+                            2 => Particularity::River,
+                            3 => Particularity::Creek,
+                            4 => Particularity::Creek,
+                            5 => Particularity::Clearing,
+                            6 => Particularity::Clearing,
+                            7 => Particularity::Clearing,
+                            8 => Particularity::Pond,
+                            _ => Particularity::Carravan
+                        }
+                    }).collect()
+                },
+                Terrain::Mountain => {
+                    let how_many_particularities = rng2.sample(&Uniform::new_inclusive(0, 1));
+
+                    rng2.sample_iter(&Uniform::new_inclusive(1, 8)).take(how_many_particularities).map(|number| {
+                        match number {
+                            1 => Particularity::Town,
+                            2 => Particularity::River,
+                            3 => Particularity::Canyon,
+                            4 => Particularity::Bolders,
+                            5 => Particularity::Bolders,
+                            6 => Particularity::Bolders,
+                            7 => Particularity::Lake,
+                            _ => Particularity::Carravan
+                        }
+                    }).collect()
                 }
-            }).collect();
+            };
 
             let region = Region {
                 id: region_id,
@@ -124,8 +200,19 @@ pub enum Particularity {
 	Town,
 	River,
 	Carravan,
+    Merchant,
     Camp,
-    Gear(Gear)
+    Gear(Gear),
+    Canyon,
+    Bolders,
+    Grasland,
+    Creek,
+    Grove,
+    Cliffs,
+    Island,
+    Lake,
+    Pond,
+    Clearing
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
