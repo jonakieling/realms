@@ -4,7 +4,7 @@ use rand::{thread_rng, distributions::Uniform, Rng};
 
 pub type ClientId = usize;
 pub type RealmId = usize;
-pub type TileId = usize;
+pub type RegionId = usize;
 pub type ExplorerId = usize;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -16,15 +16,15 @@ pub enum RealmsProtocol {
     RequestNewRealm,
     RequestRealm(RealmId),
     Realm(Realm),
-    Move(Move),
+    Explorer(Move),
     Quit,
     Void
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Move {
-    ChangeLocation(RealmId, TileId, ExplorerId),
-    Action(RealmId, TileId, ExplorerId, ExplorerAction)
+    ChangeRegion(RealmId, RegionId, ExplorerId),
+    Action(RealmId, RegionId, ExplorerId, ExplorerAction)
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -44,15 +44,15 @@ impl fmt::Display for RealmsProtocol {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Island {
-    pub tiles: Vec<Tile>
+    pub regions: Vec<Region>
 }
 
 impl Island {
     pub fn new() -> Island {
         let mut rng = thread_rng();
         let mut rng2 = thread_rng();
-        let mut tile_id = 0;
-        let tiles: Vec<Tile> = rng.sample_iter(&Uniform::new_inclusive(1, 4)).take(19).map(|number| {
+        let mut region_id = 0;
+        let regions: Vec<Region> = rng.sample_iter(&Uniform::new_inclusive(1, 4)).take(19).map(|number| {
             let terrain = match number {
                 1 => Terrain::Coast,
                 2 => Terrain::Planes,
@@ -70,28 +70,28 @@ impl Island {
                 }
             }).collect();
 
-            let tile = Tile {
-                id: tile_id,
+            let region = Region {
+                id: region_id,
                 terrain,
                 particularities,
                 buildings: vec![],
                 mapped: false,
                 resources: 10
             };
-            tile_id += 1;
+            region_id += 1;
 
-            tile
+            region
         }).collect();
 
         Island {
-            tiles
+            regions
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Tile {
-    pub id: TileId,
+pub struct Region {
+    pub id: RegionId,
     pub terrain: Terrain,
     pub particularities: Vec<Particularity>,
     pub buildings: Vec<String>,
@@ -99,7 +99,7 @@ pub struct Tile {
     pub resources: usize
 }
 
-impl fmt::Display for Tile {
+impl fmt::Display for Region {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} {:?}", self.id, self.terrain)
     }
@@ -129,7 +129,7 @@ pub struct Expedition {
 impl Expedition {
     pub fn new() -> Expedition {
         Expedition {
-            explorers: vec![Explorer { id: 0, variant: ExplorerVariant::Ranger, location: None }, Explorer { id: 1, variant: ExplorerVariant::Cartographer, location: None }, Explorer { id: 2, variant: ExplorerVariant::Engineer, location: None }, Explorer { id: 3, variant: ExplorerVariant::Sailor, location: None }],
+            explorers: vec![Explorer { id: 0, variant: ExplorerVariant::Ranger, region: None }, Explorer { id: 1, variant: ExplorerVariant::Cartographer, region: None }, Explorer { id: 2, variant: ExplorerVariant::Engineer, region: None }, Explorer { id: 3, variant: ExplorerVariant::Sailor, region: None }],
             gear: vec![Gear::Tent, Gear::Tools]
         }
     }
@@ -139,7 +139,7 @@ impl Expedition {
 pub struct Explorer {
     pub id: ExplorerId,
     pub variant: ExplorerVariant,
-    pub location: Option<TileId>
+    pub region: Option<RegionId>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

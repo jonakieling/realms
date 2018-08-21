@@ -20,7 +20,7 @@ pub fn draw(terminal: &mut Terminal<RawBackend>, data: &mut Data) -> Result<(), 
         	draw_header(t, &chunks[0], &data);
 
 	        match data.active {
-			    InteractiveUi::Locations | InteractiveUi::Explorers | InteractiveUi::MoveLocations => {
+			    InteractiveUi::Regions | InteractiveUi::Explorers | InteractiveUi::MoveRegions => {
 			    	if data.realm.is_some() {
 			    		draw_realm(t, &chunks[1], &data);
 			        }
@@ -131,25 +131,25 @@ fn draw_realm_ui(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 		.sizes(&[Size::Fixed(16), Size::Min(0)])
 	    .render(t, area, |t, chunks| {
 
-			let location_index = data.locations.current_index();
-			let locations: Vec<String> = data.locations.iter().map(|tile| {
-				format!("{}", tile)
+			let region_index = data.regions.current_index();
+			let regions: Vec<String> = data.regions.iter().map(|region| {
+				format!("{}", region)
 		    }).collect();
 
 	    	let mut border_style = Style::default();
-	    	if let InteractiveUi::Locations = data.active {
+	    	if let InteractiveUi::Regions = data.active {
 	    	    border_style = Style::default().fg(Color::Yellow);
 	    	}
-	    	let mut locations_list_style = Style::default();
-	    	if let InteractiveUi::Locations = data.active {
-	    	    locations_list_style = Style::default().fg(Color::Yellow);
+	    	let mut regions_list_style = Style::default();
+	    	if let InteractiveUi::Regions = data.active {
+	    	    regions_list_style = Style::default().fg(Color::Yellow);
 	    	}
 	        SelectableList::default()
 	            .block(Block::default().borders(Borders::ALL).title("Island").border_style(border_style))
-	            .items(&locations)
-	            .select(location_index)
+	            .items(&regions)
+	            .select(region_index)
 	            .highlight_style(
-	                locations_list_style
+	                regions_list_style
 	            )
 	            .render(t, &chunks[0]);
     		// end SelectableList::default()
@@ -160,19 +160,19 @@ fn draw_realm_ui(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 		        .render(t, &chunks[1], |t, chunks| {
 					draw_realm_expedition(t, &chunks[0], &data);
 					if let InteractiveUi::Explorers = data.active {
-		        		if data.explorers.current().expect("could not fetch current explorers selection.").location.is_some() {
-							draw_realm_location(t, &chunks[1], &data);
+		        		if data.explorers.current().expect("could not fetch current explorers selection.").region.is_some() {
+							draw_realm_region(t, &chunks[1], &data);
 		        		} else {
 					    	Paragraph::default()
 						        .text(
-						            "this explorer has not embarked yet. select a location from the list to move them there."
-						        ).block(Block::default().borders(Borders::ALL).title("Location").border_style(Style::default()))
+						            "this explorer has not embarked yet. select a region from the list to move them there."
+						        ).block(Block::default().borders(Borders::ALL).title("Region").border_style(Style::default()))
 								.wrap(true)
 						        .render(t, &chunks[1]);
 							// end Paragraph::default()	
 			        	}
 		        	} else {
-						draw_realm_location(t, &chunks[1], &data);
+						draw_realm_region(t, &chunks[1], &data);
 		        	}
 
                     Paragraph::default()
@@ -192,16 +192,16 @@ fn draw_realm_expedition(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data)
 
 	let explorer_index = data.explorers.current_index();
 	let explorers: Vec<String> = data.explorers.iter().map(|explorer| {
-		if let Some(explorer_location) = explorer.location {
-        	format!("{} {}", explorer.variant, explorer_location)
+		if let Some(explorer_region) = explorer.region {
+        	format!("{} {}", explorer.variant, explorer_region)
 		} else {
         	format!("{}", explorer.variant)
 		}
     }).collect();
 
-	let location_index = data.locations.current_index();
-	let locations: Vec<String> = data.locations.iter().map(|tile| {
-		format!("{}", tile)
+	let region_index = data.regions.current_index();
+	let regions: Vec<String> = data.regions.iter().map(|region| {
+		format!("{}", region)
     }).collect();
 
 	Group::default()
@@ -218,7 +218,7 @@ fn draw_realm_expedition(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data)
                     ).highlight_symbol("→")
                     .render(t, &chunks[0]);
 	        	// end SelectableList::default()
-        	} else if let InteractiveUi::MoveLocations = data.active {
+        	} else if let InteractiveUi::MoveRegions = data.active {
                 SelectableList::default()
                     .block(Block::default().borders(Borders::ALL).title("Expedition").border_style(Style::default().fg(Color::Yellow)))
                     .items(&explorers)
@@ -240,11 +240,11 @@ fn draw_realm_expedition(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data)
 	        	// end SelectableList::default()
         	}
 
-        	if let InteractiveUi::MoveLocations = data.active {
+        	if let InteractiveUi::MoveRegions = data.active {
                 SelectableList::default()
-                    .block(Block::default().borders(Borders::ALL).title("Move Explorer").border_style(Style::default().fg(Color::Yellow)))
-                    .items(&locations)
-                    .select(location_index)
+                    .block(Block::default().borders(Borders::ALL).title("Explorer").border_style(Style::default().fg(Color::Yellow)))
+                    .items(&regions)
+                    .select(region_index)
                     .highlight_style(
                         Style::default().fg(Color::Yellow)
                     )
@@ -252,11 +252,11 @@ fn draw_realm_expedition(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data)
                     .render(t, &chunks[1]);
 	        	// end SelectableList::default()
         	} else if let InteractiveUi::Explorers = data.active {
-        		if data.explorers.current().expect("could not fetch current explorers selection.").location.is_some() {
+        		if data.explorers.current().expect("could not fetch current explorers selection.").region.is_some() {
                     SelectableList::default()
-                        .block(Block::default().borders(Borders::ALL).title("Move Explorer").border_style(Style::default()))
-                        .items(&locations)
-                        .select(location_index)
+                        .block(Block::default().borders(Borders::ALL).title("Explorer").border_style(Style::default()))
+                        .items(&regions)
+                        .select(region_index)
                         .highlight_style(
                             Style::default().fg(Color::Yellow)
                         )
@@ -264,9 +264,9 @@ fn draw_realm_expedition(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data)
 		        	// end SelectableList::default()
         		} else {
                     SelectableList::default()
-                        .block(Block::default().borders(Borders::ALL).title("Move Explorer").border_style(Style::default()))
-                        .items(&locations)
-                        .select(location_index)
+                        .block(Block::default().borders(Borders::ALL).title("Explorer").border_style(Style::default()))
+                        .items(&regions)
+                        .select(region_index)
                         .highlight_style(
                             Style::default()
                         )
@@ -277,7 +277,7 @@ fn draw_realm_expedition(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data)
 		    	Paragraph::default()
 			        .text(
 			            "select an explorer from the expedition to move them and make actions."
-			        ).block(Block::default().borders(Borders::ALL).title("Move Explorer").border_style(Style::default()))
+			        ).block(Block::default().borders(Borders::ALL).title("Explorer").border_style(Style::default()))
 					.wrap(true)
 			        .render(t, &chunks[1]);
 				// end Paragraph::default()	
@@ -287,9 +287,9 @@ fn draw_realm_expedition(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data)
 	// end Group::default()
 }
 
-fn draw_realm_location(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
+fn draw_realm_region(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 
-	let location = data.locations.current().expect("could not fetch current locations selection.");
+	let region = data.regions.current().expect("could not fetch current regions selection.");
 
 	Group::default()
         .direction(Direction::Horizontal)
@@ -302,22 +302,22 @@ fn draw_realm_location(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 
 			let mut info = vec![];
 			info.push(Item::StyledData(
-                    format!("{:?}", location.buildings),
+                    format!("{:?}", region.buildings),
                     &style
             ));
 			info.push(Item::StyledData(
-                    format!("Resources {}", location.resources),
+                    format!("Resources {}", region.resources),
                     &style
             ));
-            if location.mapped {
+            if region.mapped {
     			info.push(Item::StyledData(
 	                    format!("Mapped"),
 	                    &green
                 ));
             }
             for explorer in data.explorers.iter() {
-            	if let Some(explorer_location) = explorer.location {
-            		if explorer_location == location.id {
+            	if let Some(explorer_region) = explorer.region {
+            		if explorer_region == region.id {
 	        			info.push(Item::StyledData(
 			                    format!("{}", explorer.variant),
 			                    &cyan
@@ -327,11 +327,11 @@ fn draw_realm_location(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
             }
 
     		List::new(info.into_iter())
-                .block(Block::default().borders(Borders::ALL).title(&format!("{} {}", "Location", location)))
+                .block(Block::default().borders(Borders::ALL).title(&format!("{} {}", "Region", region)))
                 .render(t, &chunks[0]);
     		// end List::new()
 
-        	let particularities = location.particularities.iter().map(|particularity| {
+        	let particularities = region.particularities.iter().map(|particularity| {
                 Item::StyledData(
                     format!("{:?}", particularity),
                     &style

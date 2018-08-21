@@ -108,12 +108,12 @@ impl Universe {
 			    		    }
 			    		}
 			        },
-			        RealmsProtocol::Move(Move::ChangeLocation(realm_id, tile_id, explorer_id)) => {
+			        RealmsProtocol::Explorer(Move::ChangeRegion(realm_id, region_id, explorer_id)) => {
 			        	for realm in &mut self.realms {
 			        	    if realm_id == realm.id {
 			        	    	for explorer in &mut realm.expedition.explorers {
 			        	    		if explorer.id == explorer_id {
-			        	    			explorer.location = Some(tile_id);
+			        	    			explorer.region = Some(region_id);
 			        	    		}
 
 			        	    	}
@@ -122,16 +122,16 @@ impl Universe {
 			        	}
 			    		self.requests.push((client_id, request));
 			        },
-			        RealmsProtocol::Move(Move::Action(realm_id, tile_id, explorer_id, action)) => {
+			        RealmsProtocol::Explorer(Move::Action(realm_id, region_id, explorer_id, action)) => {
     	    			let mut allowed = false;
 			        	for realm in &mut self.realms {
 			        	    if realm_id == realm.id {
-		        	    		for location in &mut realm.island.tiles {
-			        	    		if tile_id == location.id {
+		        	    		for region in &mut realm.island.regions {
+			        	    		if region_id == region.id {
 			        	    			for explorer in &mut realm.expedition.explorers {
 					        	    		if explorer.id == explorer_id {
-					        	    			if let Some(explorer_location) = explorer.location {
-					        	    				if explorer_location == tile_id {
+					        	    			if let Some(explorer_region) = explorer.region {
+					        	    				if explorer_region == region_id {
 					        	    					allowed = true;
 					        	    				}
 					        	    			}
@@ -141,14 +141,14 @@ impl Universe {
 					        	    	if allowed {
 			        	    				match action {
 			        	    				    ExplorerAction::Build => {
-			        	    				    	location.buildings.push("\u{2302}".to_string());
+			        	    				    	region.buildings.push("\u{2302}".to_string());
 			        	    				    },
 			        	    				    ExplorerAction::Map => {
-			        	    				    	location.mapped = true;
+			        	    				    	region.mapped = true;
 			        	    				    },
 			        	    				    ExplorerAction::Hunt => {
-			        	    				    	if location.resources > 0 {
-			        	    				    		location.resources -= 1;
+			        	    				    	if region.resources > 0 {
+			        	    				    		region.resources -= 1;
 			        	    				    	}
 			        	    				    },
 			        	    				    ExplorerAction::Sail => {},
@@ -165,7 +165,7 @@ impl Universe {
 			        	    }
 			        	}
 			        	if allowed {
-			    			self.requests.push((client_id, RealmsProtocol::Move(Move::Action(realm_id, tile_id, explorer_id, action))));
+			    			self.requests.push((client_id, RealmsProtocol::Explorer(Move::Action(realm_id, region_id, explorer_id, action))));
 			        	}
 			        },
 			        RealmsProtocol::Quit => {

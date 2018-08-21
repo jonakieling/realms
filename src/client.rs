@@ -18,10 +18,10 @@ use client_dashboard::draw;
 
 #[derive(Debug)]
 pub enum InteractiveUi {
-	Locations,
+	Regions,
 	Explorers,
 	Realms,
-	MoveLocations
+	MoveRegions
 }
 
 #[derive(Debug)]
@@ -29,7 +29,7 @@ pub struct Data {
 	pub id: ClientId,
 	pub realm: Option<Realm>,
 	pub realms: SelectionStorage<RealmId>,
-	pub locations: SelectionStorage<Tile>,
+	pub regions: SelectionStorage<Region>,
 	pub explorers: SelectionStorage<Explorer>,
 	pub active: InteractiveUi
 }
@@ -47,7 +47,7 @@ impl Periscope {
 				id: 0,
 				realm: None,
 				realms: SelectionStorage::new(),
-				locations: SelectionStorage::new(),
+				regions: SelectionStorage::new(),
 				explorers: SelectionStorage::new(),
 				active: InteractiveUi::Realms
 			}
@@ -105,8 +105,8 @@ fn handle_events(rx: &Receiver<Event>, stream: &mut TcpStream, data: &mut Data) 
 	    },
 	    Event::Input(key) => {
 	    	match data.active {
-			    InteractiveUi::Locations => {
-			    	handle_locations_events(stream, data, key);
+			    InteractiveUi::Regions => {
+			    	handle_regions_events(stream, data, key);
 			    },
 			    InteractiveUi::Explorers => {
 			    	handle_explorer_events(stream, data, key);
@@ -114,8 +114,8 @@ fn handle_events(rx: &Receiver<Event>, stream: &mut TcpStream, data: &mut Data) 
 			    InteractiveUi::Realms => {
 			    	handle_realms_events(stream, data, key);
 			    },
-			    InteractiveUi::MoveLocations => {
-			    	handle_move_locations_events(stream, data, key);
+			    InteractiveUi::MoveRegions => {
+			    	handle_move_regions_events(stream, data, key);
 			    }
 			}
 
@@ -141,7 +141,7 @@ fn handle_realms_events(stream: &mut TcpStream, data: &mut Data, key: event::Key
 		},
 		event::Key::Char('r') => {
 			if let RealmsProtocol::Realm(response_realm) = send_request(stream, data.id, RealmsProtocol::RequestNewRealm) {
-				data.locations =  SelectionStorage::new_from(&response_realm.island.tiles);
+				data.regions =  SelectionStorage::new_from(&response_realm.island.regions);
 	    		data.explorers = SelectionStorage::new_from(&response_realm.expedition.explorers);
 				data.realm = Some(response_realm);
 			}
@@ -156,7 +156,7 @@ fn handle_realms_events(stream: &mut TcpStream, data: &mut Data, key: event::Key
 	    		let current_realm_id = data.realm.as_ref().expect("could not access active realm.").id;
 	    		if *realm_id != current_realm_id {
 		    		if let RealmsProtocol::Realm(response_realm) = send_request(stream, data.id, RealmsProtocol::RequestRealm(*realm_id)) {
-						data.locations =  SelectionStorage::new_from(&response_realm.island.tiles);
+						data.regions =  SelectionStorage::new_from(&response_realm.island.regions);
 			    		data.explorers = SelectionStorage::new_from(&response_realm.expedition.explorers);
 						data.realm = Some(response_realm);
 					}
@@ -164,32 +164,32 @@ fn handle_realms_events(stream: &mut TcpStream, data: &mut Data, key: event::Key
 	    	} else {
 	    		let realm_id = data.realms.current().expect("could not access current realm selection.");
 	    		if let RealmsProtocol::Realm(response_realm) = send_request(stream, data.id, RealmsProtocol::RequestRealm(*realm_id)) {
-		    		data.locations =  SelectionStorage::new_from(&response_realm.island.tiles);
+		    		data.regions =  SelectionStorage::new_from(&response_realm.island.regions);
 		    		data.explorers = SelectionStorage::new_from(&response_realm.expedition.explorers);
 					data.realm = Some(response_realm);
 				}
 	    	}
-	    	data.active = InteractiveUi::Locations;
+	    	data.active = InteractiveUi::Regions;
 		},
 		_ => { }
 	}
 }
 
-fn handle_locations_events(_stream: &mut TcpStream, data: &mut Data, key: event::Key) {
+fn handle_regions_events(_stream: &mut TcpStream, data: &mut Data, key: event::Key) {
 	match key {
 		event::Key::Up => {
-	    	data.locations.prev();
+	    	data.regions.prev();
 		},
 		event::Key::Down => {
-	    	data.locations.next();
+	    	data.regions.next();
 		},
 		event::Key::Right => {
 	    	data.active = InteractiveUi::Explorers;
-        	sync_locations_with_explorer(data);
+        	sync_regions_with_explorer(data);
 		},
 		event::Key::Left => {
-	    	data.active = InteractiveUi::MoveLocations;
-        	sync_locations_with_explorer(data);
+	    	data.active = InteractiveUi::MoveRegions;
+        	sync_regions_with_explorer(data);
 		},
 		event::Key::Char('l') => {
 			data.active = InteractiveUi::Realms;
@@ -198,42 +198,42 @@ fn handle_locations_events(_stream: &mut TcpStream, data: &mut Data, key: event:
 	}
 }
 
-fn handle_move_locations_events(stream: &mut TcpStream, data: &mut Data, key: event::Key) {
+fn handle_move_regions_events(stream: &mut TcpStream, data: &mut Data, key: event::Key) {
 	match key {
 		event::Key::Up => {
-	    	data.locations.prev();
+	    	data.regions.prev();
 		},
 		event::Key::Down => {
-	    	data.locations.next();
+	    	data.regions.next();
 		},
 		event::Key::Right => {
-	    	data.active = InteractiveUi::Locations;
-	    	data.locations.at(0);
+	    	data.active = InteractiveUi::Regions;
+	    	data.regions.at(0);
 		},
 		event::Key::Left => {
 	    	data.active = InteractiveUi::Explorers;
-        	sync_locations_with_explorer(data);
+        	sync_regions_with_explorer(data);
 		},
 		event::Key::Char('l') => {
 			data.active = InteractiveUi::Realms;
 		},
 		event::Key::Char('\n') => {
     		{
-				// request reset locations index, we set it back afterwards
-				let last_index = data.locations.current_index();
+				// request reset regions index, we set it back afterwards
+				let last_index = data.regions.current_index();
 				let last_explorers_index = data.explorers.current_index();
 
 				let realm_id = data.realms.current().expect("could not access current realm selection.");
-	    		if let RealmsProtocol::Realm(response_realm) = explorer_move(stream, data.id, *realm_id, &mut data.locations, &mut data.explorers) {
-		    		data.locations =  SelectionStorage::new_from(&response_realm.island.tiles);
+	    		if let RealmsProtocol::Realm(response_realm) = explorer_move(stream, data.id, *realm_id, &mut data.regions, &mut data.explorers) {
+		    		data.regions =  SelectionStorage::new_from(&response_realm.island.regions);
 		    		data.explorers = SelectionStorage::new_from(&response_realm.expedition.explorers);
 					data.realm = Some(response_realm);
 				}
 
-				data.locations.at(last_index);
+				data.regions.at(last_index);
 				data.explorers.at(last_explorers_index);
     		}
-        	sync_locations_with_explorer(data);
+        	sync_regions_with_explorer(data);
 	    	data.active = InteractiveUi::Explorers;
 		},
 		_ => { }
@@ -244,77 +244,77 @@ fn handle_explorer_events(stream: &mut TcpStream, data: &mut Data, key: event::K
 	match key {
 		event::Key::Up => {
 	    	data.explorers.prev();
-        	sync_locations_with_explorer(data);
+        	sync_regions_with_explorer(data);
 		},
 		event::Key::Down => {
 	    	data.explorers.next();
-        	sync_locations_with_explorer(data);
+        	sync_regions_with_explorer(data);
 		},
 		event::Key::Right => {
-	    	data.active = InteractiveUi::MoveLocations;
-        	sync_locations_with_explorer(data);
+	    	data.active = InteractiveUi::MoveRegions;
+        	sync_regions_with_explorer(data);
 		},
 		event::Key::Left => {
-	    	data.active = InteractiveUi::Locations;
-	    	data.locations.at(0);
+	    	data.active = InteractiveUi::Regions;
+	    	data.regions.at(0);
 		},
 		event::Key::Char('l') => {
 			data.active = InteractiveUi::Realms;
 		},
 		event::Key::Char('\n') => {
     		{
-				// request reset locations and explorers index, we set it back afterwards
-				let last_location_index = data.locations.current_index();
+				// request reset regions and explorers index, we set it back afterwards
+				let last_region_index = data.regions.current_index();
 				let last_explorers_index = data.explorers.current_index();
 
     			let realm_id = data.realms.current().expect("could not access current realm selection.");
-	    		if let RealmsProtocol::Realm(response_realm) = explorer_action(stream, data.id, *realm_id, &mut data.locations, &mut data.explorers) {
-		    		data.locations =  SelectionStorage::new_from(&response_realm.island.tiles);
+	    		if let RealmsProtocol::Realm(response_realm) = explorer_action(stream, data.id, *realm_id, &mut data.regions, &mut data.explorers) {
+		    		data.regions =  SelectionStorage::new_from(&response_realm.island.regions);
 		    		data.explorers = SelectionStorage::new_from(&response_realm.expedition.explorers);
 					data.realm = Some(response_realm);
 				}
 
-				data.locations.at(last_location_index);
+				data.regions.at(last_region_index);
 				data.explorers.at(last_explorers_index);
     		}
-        	sync_locations_with_explorer(data);
+        	sync_regions_with_explorer(data);
 		},
 		_ => { }
 	}
 }
 
-fn sync_locations_with_explorer(data: &mut Data) {
-	let mut current_explorer_location = 0;
-	if let Some(explorer_location) = data.explorers.current().expect("could not access current explorers selection.").location {
-		current_explorer_location = explorer_location;
+fn sync_regions_with_explorer(data: &mut Data) {
+	let mut current_explorer_region = 0;
+	if let Some(explorer_region) = data.explorers.current().expect("could not access current explorers selection.").region {
+		current_explorer_region = explorer_region;
 	}
-	let mut current_explorer_location_index = 0;
-	for (index, location) in data.locations.iter().enumerate() {
-	    if current_explorer_location == location.id {
-	        current_explorer_location_index = index;
+	let mut current_explorer_region_index = 0;
+	for (index, region) in data.regions.iter().enumerate() {
+	    if current_explorer_region == region.id {
+	        current_explorer_region_index = index;
 	    }
 	}
-	data.locations.at(current_explorer_location_index);
+	data.regions.at(current_explorer_region_index);
 }
 
-fn explorer_action(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, locations: &mut SelectionStorage<Tile>, explorers: &mut SelectionStorage<Explorer>) -> RealmsProtocol {
+fn explorer_action(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, regions: &mut SelectionStorage<Region>, explorers: &mut SelectionStorage<Explorer>) -> RealmsProtocol {
 	let mut request = RealmsProtocol::Void;
 
-	if let Some(location) = locations.current() {
+	if let Some(region) = regions.current() {
 		if let Some(explorer) = explorers.current() {
-			request = send_request(stream, client, RealmsProtocol::Move(Move::Action(realm_id, location.id, explorer.id, explorer.action())));
+			request = send_request(stream, client, RealmsProtocol::Explorer(Move::Action(realm_id, region.id, explorer.id, explorer.action())));
 		}
 	}
 
 	request
 }
 
-fn explorer_move(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, locations: &mut SelectionStorage<Tile>, explorers: &mut SelectionStorage<Explorer>) -> RealmsProtocol {
+fn explorer_move(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, regions: &mut SelectionStorage<Region>, explorers: &mut SelectionStorage<Explorer>) -> RealmsProtocol {
 	let mut request = RealmsProtocol::Void;
 
-	if let Some(location) = locations.current() {
+	if let Some(region) = regions.current() {
 		if let Some(explorer) = explorers.current() {
-			request = send_request(stream, client, RealmsProtocol::Move(Move::ChangeLocation(realm_id, location.id, explorer.id)));
+			request = send_request(stream, client, RealmsProtocol::Explorer(Move::ChangeRegion(realm_id, region.id, explorer.id)));
 		}
 	}
 
