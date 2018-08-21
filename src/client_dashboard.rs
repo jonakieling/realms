@@ -157,7 +157,7 @@ fn draw_realm_ui(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 		        		} else {
 					    	Paragraph::default()
 						        .text(
-						            "this explorer has not embarked yet. select a region from the list to move them there."
+						            "this explorer has not embarked yet. select the embark order and move them to a region."
 						        ).block(Block::default().borders(Borders::ALL).title("Region").border_style(Style::default()))
 								.wrap(true)
 						        .render(t, &chunks[1]);
@@ -269,18 +269,18 @@ fn draw_realm_expedition_list(t: &mut Terminal<RawBackend>, area: &Rect, data: &
                 .items(&explorers)
                 .select(explorer_index)
                 .highlight_style(
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(Color::Yellow)
                 ).highlight_symbol("→")
                 .render(t, area);
             // end SelectableList::default()
         },
-        InteractiveUi::ExplorerMove | InteractiveUi::ExplorerActions | InteractiveUi::ExplorerInventory | InteractiveUi::ExplorerSelect => {
+        InteractiveUi::ExplorerMove | InteractiveUi::ExplorerActions | InteractiveUi::ExplorerInventory | InteractiveUi::ExplorerOrders => {
             SelectableList::default()
-                .block(Block::default().borders(Borders::ALL).title("Expedition").border_style(Style::default().fg(Color::Yellow)))
+                .block(Block::default().borders(Borders::ALL).title("Expedition").border_style(Style::default()))
                 .items(&explorers)
                 .select(explorer_index)
                 .highlight_style(
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(Color::Yellow)
                 )
                 .render(t, area);
             // end SelectableList::default()
@@ -291,7 +291,7 @@ fn draw_realm_expedition_list(t: &mut Terminal<RawBackend>, area: &Rect, data: &
                 .items(&explorers)
                 .select(explorer_index)
                 .highlight_style(
-                    Style::default()
+                    Style::default().fg(Color::Yellow)
                 )
                 .render(t, area);
             // end SelectableList::default()
@@ -306,15 +306,66 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
         format!("{}", region)
     }).collect();
 
-    let explorer_select_index = data.explorer_select.current_index();
-    let explorer_select: Vec<String> = data.explorer_select.iter().map(|explorer_select| {
-        format!("{:?}", explorer_select)
+    let explorer_orders_index = data.explorer_orders.current_index();
+    let explorer_orders: Vec<String> = data.explorer_orders.iter().map(|explorer_order| {
+        format!("{:?}", explorer_order)
     }).collect();
 
     match data.active {
-        InteractiveUi::ExplorerMove => {
+        InteractiveUi::Explorers => {
             SelectableList::default()
-                .block(Block::default().borders(Borders::ALL).title("Move Explorer [Esc]").border_style(Style::default().fg(Color::Yellow)))
+                .block(Block::default().borders(Borders::ALL).title("Explorer").border_style(Style::default()))
+                .items(&explorer_orders)
+                .select(explorer_orders_index)
+                .highlight_style(
+                    Style::default()
+                )
+                .render(t, area);
+            // end SelectableList::default()
+        },
+        InteractiveUi::ExplorerOrders => {
+            SelectableList::default()
+                .block(Block::default().borders(Borders::ALL).title("Explorer [Enter]").border_style(Style::default().fg(Color::Yellow)))
+                .items(&explorer_orders)
+                .select(explorer_orders_index)
+                .highlight_style(
+                    Style::default().fg(Color::Yellow)
+                )
+                .highlight_symbol("→")
+                .render(t, area);
+            // end SelectableList::default()
+        },
+        InteractiveUi::ExplorerInventory => {
+            if let Some(explorer) = data.explorers.current() {
+                Paragraph::default()
+                    .text(
+                        &format!("{:?}", explorer.inventory)
+                    ).block(Block::default().borders(Borders::ALL).title("Inventory [Esc to exit]").border_style(Style::default().fg(Color::Yellow)))
+                    .wrap(true)
+                    .render(t, area);
+                // end Paragraph::default() 
+            }
+        },
+        InteractiveUi::ExplorerActions => {
+            if let Some(explorer) = data.explorers.current() {
+                Paragraph::default()
+                    .text(
+                        &format!("{:?}", explorer.actions())
+                    ).block(Block::default().borders(Borders::ALL).title("Actions [Esc to exit]").border_style(Style::default().fg(Color::Yellow)))
+                    .wrap(true)
+                    .render(t, area);
+                // end Paragraph::default() 
+            }
+        },
+        InteractiveUi::ExplorerMove => {
+            let mut title = "Move [Esc to exit]".to_string();
+            if let Some(explorer) = data.explorers.current() {
+                if !explorer.region.is_some() {
+                    title = "Embark [Esc to exit]".to_string();
+                }
+            }
+            SelectableList::default()
+                .block(Block::default().borders(Borders::ALL).title(&title).border_style(Style::default().fg(Color::Yellow)))
                 .items(&regions)
                 .select(region_index)
                 .highlight_style(
@@ -324,69 +375,13 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
                 .render(t, area);
             // end SelectableList::default()
         },
-        InteractiveUi::ExplorerActions => {
-            if let Some(explorer) = data.explorers.current() {
-                Paragraph::default()
-                    .text(
-                        &format!("{:?}", explorer.actions())
-                    ).block(Block::default().borders(Borders::ALL).title("Explorer Actions [Esc]").border_style(Style::default().fg(Color::Yellow)))
-                    .wrap(true)
-                    .render(t, area);
-                // end Paragraph::default() 
-            }
-        },
-        InteractiveUi::ExplorerInventory => {
-            if let Some(explorer) = data.explorers.current() {
-                Paragraph::default()
-                    .text(
-                        &format!("{:?}", explorer.inventory)
-                    ).block(Block::default().borders(Borders::ALL).title("Explorer Inventory [Esc]").border_style(Style::default().fg(Color::Yellow)))
-                    .wrap(true)
-                    .render(t, area);
-                // end Paragraph::default() 
-            }
-        },
-        InteractiveUi::Explorers => {
+        _ => {
             SelectableList::default()
                 .block(Block::default().borders(Borders::ALL).title("Explorer").border_style(Style::default()))
-                .items(&explorer_select)
-                .select(explorer_select_index)
-                .highlight_style(
-                    Style::default()
-                )
+                .items(&explorer_orders)
+                .select(explorer_orders_index)
                 .render(t, area);
             // end SelectableList::default()
-        },
-        InteractiveUi::ExplorerSelect => {
-            SelectableList::default()
-                .block(Block::default().borders(Borders::ALL).title("Explorer [Enter]").border_style(Style::default().fg(Color::Yellow)))
-                .items(&explorer_select)
-                .select(explorer_select_index)
-                .highlight_style(
-                    Style::default().fg(Color::Yellow)
-                )
-                .highlight_symbol("→")
-                .render(t, area);
-            // end SelectableList::default()
-        },
-        _ => {
-            if let Some(_) = data.explorers.current() {
-                Paragraph::default()
-                    .text(
-                        ""
-                    ).block(Block::default().borders(Borders::ALL).title("Explorer").border_style(Style::default()))
-                    .wrap(true)
-                    .render(t, area);
-                // end Paragraph::default() 
-            } else {
-                Paragraph::default()
-                    .text(
-                        "select an explorer from the expedition to give orders."
-                    ).block(Block::default().borders(Borders::ALL).title("Explorer").border_style(Style::default()))
-                    .wrap(true)
-                    .render(t, area);
-                // end Paragraph::default() 
-            }
         },
     }
 }

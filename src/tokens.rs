@@ -87,6 +87,12 @@ impl Island {
             regions
         }
     }
+
+    pub fn plain() -> Island {
+        Island {
+            regions: vec![]
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -138,6 +144,12 @@ impl Expedition {
             ]
         }
     }
+
+    pub fn plain() -> Expedition {
+        Expedition {
+            explorers: vec![]
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -170,12 +182,14 @@ impl fmt::Display for ExplorerTrait {
 impl Explorer {
     pub fn actions(&self) -> Vec<ExplorerAction> {
         let mut actions = vec![];
-        for explorer_trait in &self.traits {
-            match explorer_trait {
-                ExplorerTrait::Ranger => actions.push(ExplorerAction::Hunt),
-                ExplorerTrait::Cartographer => actions.push(ExplorerAction::Map),
-                ExplorerTrait::Engineer => actions.push(ExplorerAction::Build),
-                ExplorerTrait::Sailor => actions.push(ExplorerAction::Sail)
+        if self.region.is_some() {
+            for explorer_trait in &self.traits {
+                match explorer_trait {
+                    ExplorerTrait::Ranger => actions.push(ExplorerAction::Hunt),
+                    ExplorerTrait::Cartographer => actions.push(ExplorerAction::Map),
+                    ExplorerTrait::Engineer => actions.push(ExplorerAction::Build),
+                    ExplorerTrait::Sailor => actions.push(ExplorerAction::Sail)
+                }
             }
         }
         actions
@@ -205,6 +219,15 @@ pub struct Realm {
 }
 
 impl Realm {
+    pub fn plain(id: RealmId) -> Realm {
+        Realm {
+            island: Island::plain(),
+            expedition: Expedition::plain(),
+            id,
+            age: 0
+        }
+    }
+
     pub fn new(id: RealmId) -> Realm {
         Realm {
             island: Island::new(),

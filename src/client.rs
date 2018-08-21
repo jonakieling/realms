@@ -20,7 +20,7 @@ use client_dashboard::draw;
 pub enum InteractiveUi {
 	Regions,
 	Explorers,
-	ExplorerSelect,
+	ExplorerOrders,
 	Realms,
 	ExplorerMove,
 	ExplorerActions,
@@ -34,15 +34,16 @@ pub struct Data {
 	pub realms: SelectionStorage<RealmId>,
 	pub regions: SelectionStorage<Region>,
 	pub explorers: SelectionStorage<Explorer>,
-	pub explorer_select: SelectionStorage<ExplorerSelect>,
+	pub explorer_orders: SelectionStorage<ExplorerOrders>,
 	pub explorer_inventory: SelectionStorage<Gear>,
 	pub active: InteractiveUi
 }
 
 #[derive(Debug, Clone)]
-pub enum ExplorerSelect {
+pub enum ExplorerOrders {
 	Inventory,
 	Actions,
+	Embark,
 	Move
 }
 
@@ -64,7 +65,7 @@ impl Periscope {
 		}
 
 		// init realm, beware that id 0 is a valid id so this might geht overriden by the server side realm with id 0
-		let realm = Realm::new(0);
+		let realm = Realm::plain(0);
 
 		Periscope {
 			stream,
@@ -74,7 +75,7 @@ impl Periscope {
 				realms,
 				regions: SelectionStorage::new(),
 				explorers: SelectionStorage::new(),
-				explorer_select: SelectionStorage::new_from(&vec![ExplorerSelect::Inventory, ExplorerSelect::Actions, ExplorerSelect::Move]),
+				explorer_orders: SelectionStorage::new_from(&vec![ExplorerOrders::Inventory, ExplorerOrders::Move]),
 				explorer_inventory: SelectionStorage::new(),
 				active: InteractiveUi::Realms
 			}
@@ -129,8 +130,8 @@ fn handle_events(rx: &Receiver<Event>, stream: &mut TcpStream, data: &mut Data) 
 			    InteractiveUi::Explorers => {
 			    	handle_explorer_events(stream, data, key);
 			    },
-			    InteractiveUi::ExplorerSelect => {
-			    	handle_explorer_select_events(stream, data, key);
+			    InteractiveUi::ExplorerOrders => {
+			    	handle_explorer_orders_events(stream, data, key);
 			    },
 			    InteractiveUi::Realms => {
 			    	handle_realms_events(stream, data, key);
@@ -180,7 +181,7 @@ fn handle_realms_events(stream: &mut TcpStream, data: &mut Data, key: event::Key
 		event::Key::Char('\n') => {
     		let realm_id = data.realms.current().expect("could not access current realm selection.");
     		let current_realm_id = data.realm.id;
-    		if *realm_id != current_realm_id {
+    		if *realm_id != current_realm_id || data.realm.island.regions.iter().len() == 0 {
 	    		if let RealmsProtocol::Realm(response_realm) = send_request(stream, data.id, RealmsProtocol::RequestRealm(*realm_id)) {
 					data.regions =  SelectionStorage::new_from(&response_realm.island.regions);
 		    		data.explorers = SelectionStorage::new_from(&response_realm.expedition.explorers);
@@ -204,9 +205,10 @@ fn handle_regions_events(_stream: &mut TcpStream, data: &mut Data, key: event::K
 		event::Key::Right => {
 	    	data.active = InteractiveUi::Explorers;
         	sync_regions_with_explorer(data);
+			update_explorer_available_orders(data);
 		},
 		event::Key::Left => {
-	    	data.active = InteractiveUi::ExplorerSelect;
+	    	data.active = InteractiveUi::ExplorerOrders;
         	sync_regions_with_explorer(data);
 		},
 		event::Key::Char('l') => {
@@ -221,13 +223,15 @@ fn handle_explorer_events(_stream: &mut TcpStream, data: &mut Data, key: event::
 		event::Key::Up => {
 	    	data.explorers.prev();
         	sync_regions_with_explorer(data);
+			update_explorer_available_orders(data);
 		},
 		event::Key::Down => {
 	    	data.explorers.next();
+	    	update_explorer_available_orders(data);
         	sync_regions_with_explorer(data);
 		},
 		event::Key::Right | event::Key::Char('\n') => {
-	    	data.active = InteractiveUi::ExplorerSelect;
+	    	data.active = InteractiveUi::ExplorerOrders;
 		},
 		event::Key::Left => {
 	    	data.active = InteractiveUi::Regions;
@@ -249,16 +253,18 @@ fn handle_explorer_events(_stream: &mut TcpStream, data: &mut Data, key: event::
 	}
 }
 
-fn handle_explorer_select_events(_stream: &mut TcpStream, data: &mut Data, key: event::Key) {
+fn handle_explorer_orders_events(_stream: &mut TcpStream, data: &mut Data, key: event::Key) {
 	match key {
 		event::Key::Up => {
-	    	data.explorer_select.prev();
+	    	data.explorer_orders.prev();
 		},
 		event::Key::Down => {
-	    	data.explorer_select.next();
+	    	data.explorer_orders.next();
 		},
 		event::Key::Left => {
 	    	data.active = InteractiveUi::Explorers;
+			update_explorer_available_orders(data);
+			update_explorer_available_orders(data);
 		},
 		event::Key::Right => {
 	    	data.active = InteractiveUi::Regions;
@@ -268,16 +274,19 @@ fn handle_explorer_select_events(_stream: &mut TcpStream, data: &mut Data, key: 
 			data.active = InteractiveUi::Realms;
 		},
 		event::Key::Char('\n') => {
-			match data.explorer_select.current() {
-			    Some(ExplorerSelect::Inventory) => {
+			match data.explorer_orders.current() {
+			    Some(ExplorerOrders::Inventory) => {
 		        	if let Some(ref explorer) = &data.explorers.current() {
 		        	    data.explorer_inventory = SelectionStorage::new_from(&explorer.inventory);
 		        	}
 		        	data.active = InteractiveUi::ExplorerInventory;
 			    },
-			    Some(ExplorerSelect::Actions) => data.active = InteractiveUi::ExplorerActions,
-			    Some(ExplorerSelect::Move) => data.active = InteractiveUi::ExplorerMove,
-			    None => data.active = InteractiveUi::Explorers
+			    Some(ExplorerOrders::Actions) => data.active = InteractiveUi::ExplorerActions,
+			    Some(ExplorerOrders::Move) | Some(ExplorerOrders::Embark) => data.active = InteractiveUi::ExplorerMove,
+			    None => {
+			    	data.active = InteractiveUi::Explorers;
+	    			update_explorer_available_orders(data);
+			    }
 			};
 		},
 		_ => { }
@@ -293,7 +302,7 @@ fn handle_explorer_move_events(stream: &mut TcpStream, data: &mut Data, key: eve
 	    	data.regions.next();
 		},
 		event::Key::Esc => {
-	    	data.active = InteractiveUi::ExplorerSelect;
+	    	data.active = InteractiveUi::ExplorerOrders;
 		},
 		event::Key::Char('l') => {
 			data.active = InteractiveUi::Realms;
@@ -304,18 +313,19 @@ fn handle_explorer_move_events(stream: &mut TcpStream, data: &mut Data, key: eve
 				let last_index = data.regions.current_index();
 				let last_explorers_index = data.explorers.current_index();
 
-				let realm_id = data.realms.current().expect("could not access current realm selection.");
-	    		if let RealmsProtocol::Realm(response_realm) = explorer_move(stream, data.id, *realm_id, &mut data.regions, &mut data.explorers) {
+	    		if let RealmsProtocol::Realm(response_realm) = explorer_move(stream, data.id, data.realm.id, &mut data.regions, &mut data.explorers) {
 		    		data.regions =  SelectionStorage::new_from(&response_realm.island.regions);
 		    		data.explorers = SelectionStorage::new_from(&response_realm.expedition.explorers);
 					data.realm = response_realm;
+
+	    			update_explorer_available_orders(data);
 				}
 
 				data.regions.at(last_index);
 				data.explorers.at(last_explorers_index);
     		}
         	sync_regions_with_explorer(data);
-	    	data.active = InteractiveUi::ExplorerSelect;
+	    	data.active = InteractiveUi::ExplorerOrders;
 		},
 		_ => { }
 	}
@@ -328,7 +338,7 @@ fn handle_explorer_actions_events(stream: &mut TcpStream, data: &mut Data, key: 
 		event::Key::Down => {
 		},
 		event::Key::Esc => {
-	    	data.active = InteractiveUi::ExplorerSelect;
+	    	data.active = InteractiveUi::ExplorerOrders;
 		},
 		event::Key::Char('l') => {
 			data.active = InteractiveUi::Realms;
@@ -339,8 +349,7 @@ fn handle_explorer_actions_events(stream: &mut TcpStream, data: &mut Data, key: 
 				let last_region_index = data.regions.current_index();
 				let last_explorers_index = data.explorers.current_index();
 
-    			let realm_id = data.realms.current().expect("could not access current realm selection.");
-	    		if let RealmsProtocol::Realm(response_realm) = explorer_action(stream, data.id, *realm_id, &mut data.regions, &mut data.explorers) {
+	    		if let RealmsProtocol::Realm(response_realm) = explorer_action(stream, data.id, data.realm.id, &mut data.regions, &mut data.explorers) {
 		    		data.regions =  SelectionStorage::new_from(&response_realm.island.regions);
 		    		data.explorers = SelectionStorage::new_from(&response_realm.expedition.explorers);
 					data.realm = response_realm;
@@ -362,7 +371,7 @@ fn handle_explorer_inventory_events(_stream: &mut TcpStream, data: &mut Data, ke
 		event::Key::Down => {
 		},
 		event::Key::Esc => {
-	    	data.active = InteractiveUi::ExplorerSelect;
+	    	data.active = InteractiveUi::ExplorerOrders;
 		},
 		event::Key::Char('l') => {
 			data.active = InteractiveUi::Realms;
@@ -385,6 +394,16 @@ fn sync_regions_with_explorer(data: &mut Data) {
 	    }
 	}
 	data.regions.at(current_explorer_region_index);
+}
+
+fn update_explorer_available_orders(data: &mut Data) {
+	if let Some(explorer) = data.explorers.current() {
+	    if explorer.region.is_some() {
+	    	data.explorer_orders = SelectionStorage::new_from(&vec![ExplorerOrders::Inventory, ExplorerOrders::Actions, ExplorerOrders::Move]);
+	    } else {
+	    	data.explorer_orders = SelectionStorage::new_from(&vec![ExplorerOrders::Inventory, ExplorerOrders::Embark]);
+	    }
+	}
 }
 
 fn explorer_action(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, regions: &mut SelectionStorage<Region>, explorers: &mut SelectionStorage<Explorer>) -> RealmsProtocol {
