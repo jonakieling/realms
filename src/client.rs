@@ -63,31 +63,17 @@ impl Periscope {
 			realms = SelectionStorage::new_from(&response_realms);
 		}
 
-		let mut realm = Realm::new(0);
-		if realms.iter().len() > 0 {
-		    if let RealmsProtocol::Realm(response_realm) = send_request(&mut stream, client_id, RealmsProtocol::RequestRealm(0)) {
-				realm = response_realm;
-			}
-		} else {
-			if let RealmsProtocol::Realm(response_realm) = send_request(&mut stream, client_id, RealmsProtocol::RequestNewRealm) {
-				realm = response_realm;
-			}
-		}
-		
-		if let RealmsProtocol::RealmsList(response_realms) = send_request(&mut stream, client_id, RealmsProtocol::RequestRealmsList) {
-			realms = SelectionStorage::new_from(&response_realms);
-		}
+		// init realm, beware that id 0 is a valid id so this might geht overriden by the server side realm with id 0
+		let realm = Realm::new(0);
 
-		let regions = SelectionStorage::new_from(&realm.island.regions);
-		let explorers = SelectionStorage::new_from(&realm.expedition.explorers);
 		Periscope {
 			stream,
 			data: Data {
 				id: client_id,
 				realm,
 				realms,
-				regions,
-				explorers,
+				regions: SelectionStorage::new(),
+				explorers: SelectionStorage::new(),
 				explorer_select: SelectionStorage::new_from(&vec![ExplorerSelect::Inventory, ExplorerSelect::Actions, ExplorerSelect::Move]),
 				explorer_inventory: SelectionStorage::new(),
 				active: InteractiveUi::Realms
