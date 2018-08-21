@@ -193,9 +193,9 @@ fn draw_realm_expedition(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data)
 	let explorer_index = data.explorers.current_index();
 	let explorers: Vec<String> = data.explorers.iter().map(|explorer| {
 		if let Some(explorer_region) = explorer.region {
-        	format!("{} {}", explorer.variant, explorer_region)
+        	format!("{:?} {}", explorer.traits, explorer_region)
 		} else {
-        	format!("{}", explorer.variant)
+        	format!("{:?}", explorer.traits)
 		}
     }).collect();
 
@@ -319,7 +319,7 @@ fn draw_realm_region(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
             	if let Some(explorer_region) = explorer.region {
             		if explorer_region == region.id {
 	        			info.push(Item::StyledData(
-			                    format!("{}", explorer.variant),
+			                    format!("{:?}", explorer.traits),
 			                    &cyan
 		                ));
             		}

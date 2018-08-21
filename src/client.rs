@@ -302,7 +302,9 @@ fn explorer_action(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, 
 
 	if let Some(region) = regions.current() {
 		if let Some(explorer) = explorers.current() {
-			request = send_request(stream, client, RealmsProtocol::Explorer(Move::Action(realm_id, region.id, explorer.id, explorer.action())));
+			if let Some(action) = explorer.actions().first() {
+				request = send_request(stream, client, RealmsProtocol::Explorer(Move::Action(realm_id, region.id, explorer.id, action.clone())));
+			}
 		}
 	}
 

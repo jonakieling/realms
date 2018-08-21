@@ -117,20 +117,25 @@ pub enum Terrain {
 pub enum Particularity {
 	Town,
 	River,
-	Carravan
+	Carravan,
+    Camp,
+    Gear(Gear)
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Expedition {
-    pub explorers: Vec<Explorer>,
-    pub gear: Vec<Gear>
+    pub explorers: Vec<Explorer>
 }
 
 impl Expedition {
     pub fn new() -> Expedition {
         Expedition {
-            explorers: vec![Explorer { id: 0, variant: ExplorerVariant::Ranger, region: None }, Explorer { id: 1, variant: ExplorerVariant::Cartographer, region: None }, Explorer { id: 2, variant: ExplorerVariant::Engineer, region: None }, Explorer { id: 3, variant: ExplorerVariant::Sailor, region: None }],
-            gear: vec![Gear::Tent, Gear::Tools]
+            explorers: vec![
+                Explorer { id: 0, traits: vec![ExplorerTrait::Ranger], region: None, inventory: vec![] },
+                Explorer { id: 1, traits: vec![ExplorerTrait::Cartographer], region: None, inventory: vec![] },
+                Explorer { id: 2, traits: vec![ExplorerTrait::Engineer], region: None, inventory: vec![] },
+                Explorer { id: 3, traits: vec![ExplorerTrait::Sailor], region: None, inventory: vec![] }
+            ]
         }
     }
 }
@@ -138,37 +143,42 @@ impl Expedition {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Explorer {
     pub id: ExplorerId,
-    pub variant: ExplorerVariant,
-    pub region: Option<RegionId>
+    pub traits: Vec<ExplorerTrait>,
+    pub region: Option<RegionId>,
+    pub inventory: Vec<Gear>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum ExplorerVariant {
+pub enum ExplorerTrait {
     Ranger,
     Cartographer,
     Engineer,
     Sailor
 }
 
-impl fmt::Display for ExplorerVariant {
+impl fmt::Display for ExplorerTrait {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ExplorerVariant::Ranger => write!(f, "Ranger"),
-            ExplorerVariant::Cartographer => write!(f, "Cartographer"),
-            ExplorerVariant::Engineer => write!(f, "Engineer"),
-            ExplorerVariant::Sailor => write!(f, "Sailor")
+            ExplorerTrait::Ranger => write!(f, "Ranger"),
+            ExplorerTrait::Cartographer => write!(f, "Cartographer"),
+            ExplorerTrait::Engineer => write!(f, "Engineer"),
+            ExplorerTrait::Sailor => write!(f, "Sailor")
         }
     }
 }
 
 impl Explorer {
-    pub fn action(&self) -> ExplorerAction {
-        match self.variant {
-            ExplorerVariant::Ranger => ExplorerAction::Hunt,
-            ExplorerVariant::Cartographer => ExplorerAction::Map,
-            ExplorerVariant::Engineer => ExplorerAction::Build,
-            ExplorerVariant::Sailor => ExplorerAction::Sail
+    pub fn actions(&self) -> Vec<ExplorerAction> {
+        let mut actions = vec![];
+        for explorer_trait in &self.traits {
+            match explorer_trait {
+                ExplorerTrait::Ranger => actions.push(ExplorerAction::Hunt),
+                ExplorerTrait::Cartographer => actions.push(ExplorerAction::Map),
+                ExplorerTrait::Engineer => actions.push(ExplorerAction::Build),
+                ExplorerTrait::Sailor => actions.push(ExplorerAction::Sail)
+            }
         }
+        actions
     }
 }
 
@@ -180,8 +190,10 @@ impl fmt::Display for Explorer {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Gear {
-    Tent,
-    Tools
+    SurvivalKit,
+    HotAirBalloon,
+    Boat,
+    ClimbingGear
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
