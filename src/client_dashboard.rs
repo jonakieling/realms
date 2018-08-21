@@ -24,9 +24,7 @@ pub fn draw(terminal: &mut Terminal<RawBackend>, data: &mut Data) -> Result<(), 
     				draw_realms_list(t, &chunks[1], &data);
 			    },
                 _ => {
-                    if data.realm.is_some() {
-                        draw_realm(t, &chunks[1], &data);
-                    }
+                    draw_realm(t, &chunks[1], &data);
                 }
 			}
         });
@@ -135,13 +133,9 @@ fn draw_realm_ui(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 	    	if let InteractiveUi::Regions = data.active {
 	    	    regions_list_style = Style::default().fg(Color::Yellow);
 	    	}
-            let mut island_title = "Island".to_string();
-            if let Some(ref realm) = data.realm {
-                island_title = format!("Island {}", realm.id.clone());
-            }
 	        SelectableList::default()
 	            .block(Block::default().borders(Borders::ALL).title(
-                    &island_title
+                    &format!("Island {}", data.realm.id.clone())
                 )
                 .border_style(border_style))
 	            .items(&regions)

@@ -30,7 +30,7 @@ pub enum InteractiveUi {
 #[derive(Debug)]
 pub struct Data {
 	pub id: ClientId,
-	pub realm: Option<Realm>,
+	pub realm: Realm,
 	pub realms: SelectionStorage<RealmId>,
 	pub regions: SelectionStorage<Region>,
 	pub explorers: SelectionStorage<Explorer>,
@@ -52,29 +52,47 @@ pub struct Periscope {
 }
 
 impl Periscope {
-	pub fn new(stream: TcpStream) -> Periscope {
-		let mut periscope = Periscope {
+	pub fn new(mut stream: TcpStream) -> Periscope {
+		let mut client_id = 0;
+		if let RealmsProtocol::Connect(id) = send_request(&mut stream, 0, RealmsProtocol::Register) {
+			client_id = id;
+		}
+
+		let mut realms = SelectionStorage::new();
+		if let RealmsProtocol::RealmsList(response_realms) = send_request(&mut stream, client_id, RealmsProtocol::RequestRealmsList) {
+			realms = SelectionStorage::new_from(&response_realms);
+		}
+
+		let mut realm = Realm::new(0);
+		if realms.iter().len() > 0 {
+		    if let RealmsProtocol::Realm(response_realm) = send_request(&mut stream, client_id, RealmsProtocol::RequestRealm(0)) {
+				realm = response_realm;
+			}
+		} else {
+			if let RealmsProtocol::Realm(response_realm) = send_request(&mut stream, client_id, RealmsProtocol::RequestNewRealm) {
+				realm = response_realm;
+			}
+		}
+		
+		if let RealmsProtocol::RealmsList(response_realms) = send_request(&mut stream, client_id, RealmsProtocol::RequestRealmsList) {
+			realms = SelectionStorage::new_from(&response_realms);
+		}
+
+		let regions = SelectionStorage::new_from(&realm.island.regions);
+		let explorers = SelectionStorage::new_from(&realm.expedition.explorers);
+		Periscope {
 			stream,
 			data: Data {
-				id: 0,
-				realm: None,
-				realms: SelectionStorage::new(),
-				regions: SelectionStorage::new(),
-				explorers: SelectionStorage::new(),
+				id: client_id,
+				realm,
+				realms,
+				regions,
+				explorers,
 				explorer_select: SelectionStorage::new_from(&vec![ExplorerSelect::Inventory, ExplorerSelect::Actions, ExplorerSelect::Move]),
 				explorer_inventory: SelectionStorage::new(),
 				active: InteractiveUi::Realms
 			}
-		};
-
-		if let RealmsProtocol::Connect(id) = send_request(&mut periscope.stream, 0, RealmsProtocol::Register) {
-			periscope.data.id = id;
 		}
-		if let RealmsProtocol::RealmsList(response_realms) = send_request(&mut periscope.stream, periscope.data.id, RealmsProtocol::RequestRealmsList) {
-			periscope.data.realms = SelectionStorage::new_from(&response_realms);
-		}
-
-		periscope
 	}
 
 	pub fn run(mut self, terminal: &mut Terminal<RawBackend>, rx: &Receiver<Event>) -> Result<(), io::Error> {
@@ -166,7 +184,7 @@ fn handle_realms_events(stream: &mut TcpStream, data: &mut Data, key: event::Key
 			if let RealmsProtocol::Realm(response_realm) = send_request(stream, data.id, RealmsProtocol::RequestNewRealm) {
 				data.regions =  SelectionStorage::new_from(&response_realm.island.regions);
 	    		data.explorers = SelectionStorage::new_from(&response_realm.expedition.explorers);
-				data.realm = Some(response_realm);
+				data.realm = response_realm;
 			}
 			if let RealmsProtocol::RealmsList(response_realms) = send_request(stream, data.id, RealmsProtocol::RequestRealmsList) {
 				data.realms = SelectionStorage::new_from(&response_realms);
@@ -174,24 +192,15 @@ fn handle_realms_events(stream: &mut TcpStream, data: &mut Data, key: event::Key
 			data.realms.last();
 		},
 		event::Key::Char('\n') => {
-	    	if data.realm.is_some() {
-	    		let realm_id = data.realms.current().expect("could not access current realm selection.");
-	    		let current_realm_id = data.realm.as_ref().expect("could not access active realm.").id;
-	    		if *realm_id != current_realm_id {
-		    		if let RealmsProtocol::Realm(response_realm) = send_request(stream, data.id, RealmsProtocol::RequestRealm(*realm_id)) {
-						data.regions =  SelectionStorage::new_from(&response_realm.island.regions);
-			    		data.explorers = SelectionStorage::new_from(&response_realm.expedition.explorers);
-						data.realm = Some(response_realm);
-					}
-	    		}
-	    	} else {
-	    		let realm_id = data.realms.current().expect("could not access current realm selection.");
+    		let realm_id = data.realms.current().expect("could not access current realm selection.");
+    		let current_realm_id = data.realm.id;
+    		if *realm_id != current_realm_id {
 	    		if let RealmsProtocol::Realm(response_realm) = send_request(stream, data.id, RealmsProtocol::RequestRealm(*realm_id)) {
-		    		data.regions =  SelectionStorage::new_from(&response_realm.island.regions);
+					data.regions =  SelectionStorage::new_from(&response_realm.island.regions);
 		    		data.explorers = SelectionStorage::new_from(&response_realm.expedition.explorers);
-					data.realm = Some(response_realm);
+					data.realm = response_realm;
 				}
-	    	}
+    		}
 	    	data.active = InteractiveUi::Regions;
 		},
 		_ => { }
@@ -313,7 +322,7 @@ fn handle_explorer_move_events(stream: &mut TcpStream, data: &mut Data, key: eve
 	    		if let RealmsProtocol::Realm(response_realm) = explorer_move(stream, data.id, *realm_id, &mut data.regions, &mut data.explorers) {
 		    		data.regions =  SelectionStorage::new_from(&response_realm.island.regions);
 		    		data.explorers = SelectionStorage::new_from(&response_realm.expedition.explorers);
-					data.realm = Some(response_realm);
+					data.realm = response_realm;
 				}
 
 				data.regions.at(last_index);
@@ -348,7 +357,7 @@ fn handle_explorer_actions_events(stream: &mut TcpStream, data: &mut Data, key: 
 	    		if let RealmsProtocol::Realm(response_realm) = explorer_action(stream, data.id, *realm_id, &mut data.regions, &mut data.explorers) {
 		    		data.regions =  SelectionStorage::new_from(&response_realm.island.regions);
 		    		data.explorers = SelectionStorage::new_from(&response_realm.expedition.explorers);
-					data.realm = Some(response_realm);
+					data.realm = response_realm;
 				}
 
 				data.regions.at(last_region_index);
