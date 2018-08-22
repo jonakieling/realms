@@ -478,7 +478,7 @@ fn explorer_handle_particularity(stream: &mut TcpStream, client: ClientId, realm
 	if let Some(region) = regions.current() {
 		if let Some(explorer) = explorers.current() {
 			match region.particularities.current() {
-			    Some(Particularity::ExplorerItem(item)) => {
+			    Some(Particularity::Item(item)) => {
 			    	request = send_request(stream, client, RealmsProtocol::PickEquipment(realm_id, region.id, explorer.id, item.clone()));
 			    },
 			    Some(particularity) => {

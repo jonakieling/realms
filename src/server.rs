@@ -179,7 +179,7 @@ impl Universe {
 					        	    		if explorer.id == explorer_id {
 					        	    			if let Some(explorer_region) = explorer.region {
 					        	    				if explorer_region == region_id {
-					        	    					region.particularities.insert(Particularity::ExplorerItem(item.clone()));
+					        	    					region.particularities.insert(Particularity::Item(item.clone()));
 					        	    					let mut item_index_to_remove: Option<usize> = None;
 					        	    					for (index, inventory_item) in explorer.inventory.iter_mut().enumerate() {
 					        	    					    if let ExplorerItem::Equipment(equipment) = inventory_item {
@@ -215,7 +215,7 @@ impl Universe {
 					        	    					explorer.inventory.insert(ExplorerItem::Equipment(item.clone()));
 					        	    					let mut item_index_to_remove: Option<usize> = None;
 					        	    					for (index, particularity_item) in region.particularities.iter_mut().enumerate() {
-					        	    					    if let Particularity::ExplorerItem(equipment) = particularity_item {
+					        	    					    if let Particularity::Item(equipment) = particularity_item {
 					        	    					    	if *equipment == item {
 					        	    					        	item_index_to_remove = Some(index);
 					        	    					    	}

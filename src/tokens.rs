@@ -100,7 +100,7 @@ pub enum Particularity {
 	Carravan,
     Merchant,
     Camp,
-    ExplorerItem(Equipment),
+    Item(Equipment),
     Canyon,
     Bolders,
     Grasland,
@@ -110,7 +110,8 @@ pub enum Particularity {
     Island,
     Lake,
     Pond,
-    Clearing
+    Clearing,
+    Ship
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -142,7 +143,7 @@ impl Explorer {
                 match explorer_trait {
                     ExplorerTrait::Ranger => actions.push(ExplorerAction::Hunt),
                     ExplorerTrait::Cartographer => actions.push(ExplorerAction::Map),
-                    ExplorerTrait::Engineer => actions.push(ExplorerAction::Build),
+                    ExplorerTrait::Builder => actions.push(ExplorerAction::Build),
                     ExplorerTrait::Sailor => actions.push(ExplorerAction::Sail)
                 }
             }
@@ -166,11 +167,11 @@ pub enum ExplorerAction {
     Wait
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
 pub enum ExplorerTrait {
     Ranger,
     Cartographer,
-    Engineer,
+    Builder,
     Sailor
 }
 
@@ -179,7 +180,7 @@ impl fmt::Display for ExplorerTrait {
         match self {
             ExplorerTrait::Ranger => write!(f, "Ranger"),
             ExplorerTrait::Cartographer => write!(f, "Cartographer"),
-            ExplorerTrait::Engineer => write!(f, "Engineer"),
+            ExplorerTrait::Builder => write!(f, "Engineer"),
             ExplorerTrait::Sailor => write!(f, "Sailor")
         }
     }
@@ -187,14 +188,36 @@ impl fmt::Display for ExplorerTrait {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
 pub enum Equipment {
-    SurvivalKit,
-    HotAirBalloon,
-    Boat,
-    ClimbingGear
+    Pots,
+    Tinder,
+    Firewood(usize),
+    Coal(usize),
+    Gold(usize),
+    Coins(usize),
+    Tools,
+    Flint,
+    Wax,
+    SealStamp,
+    Blankets,
+    Herbs(usize),
+    Food(usize),
+    Pipe,
+    Telescope,
+    Compass,
+    Rope,
+    Parchment(usize),
+    Map,
+    Knife,
+    Spear,
+    Bow,
+    Arrows(usize),
+    Canoe,
+    Raft
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
 pub enum ExplorerItem {
     Equipment(Equipment),
-    Particularity(RegionId, Particularity)
+    Particularity(RegionId, Particularity),
+    Message(String)
 }

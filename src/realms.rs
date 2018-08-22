@@ -60,7 +60,7 @@ fn realm_dev(id: usize) -> Realm {
                         5 => Particularity::Cliffs,
                         6 => Particularity::Island,
                         7 => Particularity::Island,
-                        8 => Particularity::ExplorerItem(Equipment::Boat),
+                        8 => Particularity::Ship,
                         _ => Particularity::Carravan
                     }
                 }).unique().collect()
@@ -118,13 +118,20 @@ fn realm_dev(id: usize) -> Realm {
             }
         };
 
+        let resources = match terrain {
+            Terrain::Planes => 6,
+            Terrain::Forest => 5,
+            Terrain::Coast => 3,
+            Terrain::Mountain => 2,
+        };
+
         let region = Region {
             id: region_id,
             terrain,
             particularities: SelectionStorage::new_from(&particularities),
             buildings: SelectionStorage::new(),
             mapped: false,
-            resources: 10
+            resources
         };
         region_id += 1;
 
@@ -135,13 +142,104 @@ fn realm_dev(id: usize) -> Realm {
         regions: SelectionStorage::new_from(&regions)
     };
 
+    // Pots
+    // Tinder
+    // Firewood(usize)
+    // Coal(usize)
+    // Gold(usize)
+    // Coins(usize)
+    // Tools
+    // Flint
+    // Wax
+    // SealStamp
+    // Blankets
+    // Herbs(usize)
+    // Food(usize)
+    // Pipe
+    // Telescope
+    // Compass
+    // Parchment(usize)
+    // Map
+    // Knife
+    // Spear
+    // Bow
+    // Arrows(usize)
+    // Canoe
+    // Raft
+    let mut explorers = SelectionStorage::new();
+    let how_many_explorers = rng.sample(&Uniform::new_inclusive(3, 5));
+
+    explorers.insert(Explorer {
+        id: 0,
+        traits: SelectionStorage::new_from(&vec![ExplorerTrait::Ranger]),
+        region: None,
+        inventory: SelectionStorage::new_from(&vec![
+            ExplorerItem::Equipment(Bow),
+            ExplorerItem::Equipment(Arrows(75)),
+            ExplorerItem::Equipment(Knife),
+            ExplorerItem::Equipment(Coins(110)),
+            ExplorerItem::Equipment(Telescope),
+            ExplorerItem::Equipment(Herbs(20))])
+    });
+    explorers.insert(Explorer {
+        id: 1,
+        traits: SelectionStorage::new_from(&vec![ExplorerTrait::Builder]),
+        region: None,
+        inventory: SelectionStorage::new_from(&vec![
+            ExplorerItem::Equipment(Tools),
+            ExplorerItem::Equipment(Food(10)),
+            ExplorerItem::Equipment(Pipe),
+            ExplorerItem::Equipment(Blankets),
+            ExplorerItem::Equipment(Knife)])
+    });
+    explorers.insert(Explorer {
+        id: 2,
+        traits: SelectionStorage::new_from(&vec![]),
+        region: None,
+        inventory: SelectionStorage::new_from(&vec![
+            ExplorerItem::Equipment(Pots),
+            ExplorerItem::Equipment(Tinder),
+            ExplorerItem::Equipment(Firewood(4)),
+            ExplorerItem::Equipment(Flint),
+            ExplorerItem::Equipment(Rope)])
+    });
+
+    if how_many_explorers > 3 {
+        explorers.insert(Explorer {
+            id: 3,
+            traits: SelectionStorage::new_from(&vec![ExplorerTrait::Cartographer]),
+            region: None,
+            inventory: SelectionStorage::new_from(&vec![
+                ExplorerItem::Equipment(Parchment(10)),
+                ExplorerItem::Equipment(Map),
+                ExplorerItem::Equipment(Rope),
+                ExplorerItem::Equipment(Wax),
+                ExplorerItem::Equipment(SealStamp)])
+        });
+    }
+
+    if how_many_explorers > 4 {
+        let mut explorer = Explorer {
+            id: 4,
+            traits: SelectionStorage::new_from(&vec![ExplorerTrait::Sailor]),
+            region: None,
+            inventory: SelectionStorage::new_from(&vec![
+                ExplorerItem::Equipment(Coins(32)),
+                ExplorerItem::Equipment(Gold(4)),
+                ExplorerItem::Equipment(Rope),
+                ExplorerItem::Equipment(Knife),
+                ExplorerItem::Equipment(Compass),
+                ExplorerItem::Equipment(Telescope)])
+        };
+        let canoe_or_not = rng.sample(&Uniform::new_inclusive(0, 1));
+        if canoe_or_not == 1 {
+            explorer.inventory.insert(ExplorerItem::Equipment(Canoe));
+        }
+        explorers.insert(explorer);
+    }
+
     let expedition = Expedition {
-        explorers: SelectionStorage::new_from(&vec![
-            Explorer { id: 0, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Ranger]), region: None, inventory: SelectionStorage::new_from(&vec![ExplorerItem::Equipment(SurvivalKit)]) },
-            Explorer { id: 1, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Cartographer]), region: None, inventory: SelectionStorage::new_from(&vec![ExplorerItem::Equipment(ClimbingGear)]) },
-            Explorer { id: 2, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Engineer]), region: None, inventory: SelectionStorage::new_from(&vec![ExplorerItem::Equipment(HotAirBalloon)]) },
-            Explorer { id: 3, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Sailor]), region: None, inventory: SelectionStorage::new_from(&vec![ExplorerItem::Equipment(Boat)]) }
-        ])
+        explorers
     };
 
     Realm {
