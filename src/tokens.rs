@@ -1,7 +1,6 @@
 
 use utility::SelectionStorage;
 use std::fmt;
-use rand::{thread_rng, distributions::Uniform, Rng};
 
 pub type ClientId = usize;
 pub type RealmId = usize;
@@ -18,8 +17,9 @@ pub enum RealmsProtocol {
     RequestRealm(RealmId),
     Realm(Realm),
     Explorer(Move),
-    DropItem(RealmId, RegionId, ExplorerId, Item),
-    PickItem(RealmId, RegionId, ExplorerId, Item),
+    DropEquipment(RealmId, RegionId, ExplorerId, Equipment),
+    PickEquipment(RealmId, RegionId, ExplorerId, Equipment),
+    InvestigateParticularity(RealmId, RegionId, ExplorerId, Particularity),
     Quit,
     Void
 }
@@ -30,18 +30,28 @@ pub enum Move {
     Action(RealmId, RegionId, ExplorerId, ExplorerAction)
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum ExplorerAction {
-    Build,
-    Hunt,
-    Sail,
-    Map,
-    Wait
-}
-
 impl fmt::Display for RealmsProtocol {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Realm {
+    pub island: Island,
+    pub expedition: Expedition,
+    pub id: RealmId,
+    pub age: usize
+}
+
+impl Realm {
+    pub fn new(id: RealmId) -> Realm {
+        Realm {
+            island: Island::new(),
+            expedition: Expedition::new(),
+            id,
+            age: 0
+        }
     }
 }
 
@@ -52,122 +62,6 @@ pub struct Island {
 
 impl Island {
     pub fn new() -> Island {
-        let mut rng = thread_rng();
-        let mut rng2 = thread_rng();
-        let mut region_id = 0;
-        let regions: Vec<Region> = rng.sample_iter(&Uniform::new_inclusive(1, 4)).take(19).map(|number| {
-            let terrain = match number {
-                1 => Terrain::Coast,
-                2 => Terrain::Planes,
-                3 => Terrain::Forest,
-                _ => Terrain::Mountain,
-            };
-
-            // Town
-            // River
-            // Carravan
-            // Merchant
-            // Camp
-            // Gear(Gear)
-            // Canyon
-            // Bolders
-            // Grasland
-            // Creek
-            // Grove
-            // Cliffs
-            // Island
-            // Lake
-            // Pond
-            // Clearing
-            let particularities: Vec<Particularity> = match terrain {
-                Terrain::Coast => {
-                    let how_many_particularities = rng2.sample(&Uniform::new_inclusive(1, 2));
-
-                    rng2.sample_iter(&Uniform::new_inclusive(1, 8)).take(how_many_particularities).map(|number| {
-                        match number {
-                            1 => Particularity::Town,
-                            2 => Particularity::River,
-                            3 => Particularity::Cliffs,
-                            4 => Particularity::Cliffs,
-                            5 => Particularity::Cliffs,
-                            6 => Particularity::Island,
-                            7 => Particularity::Island,
-                            _ => Particularity::Carravan
-                        }
-                    }).collect()
-                },
-                Terrain::Planes => {
-                    let how_many_particularities = rng2.sample(&Uniform::new_inclusive(1, 3));
-
-                    rng2.sample_iter(&Uniform::new_inclusive(1, 10)).take(how_many_particularities).map(|number| {
-                        match number {
-                            1 => Particularity::Town,
-                            2 => Particularity::Merchant,
-                            3 => Particularity::Grove,
-                            4 => Particularity::Grove,
-                            5 => Particularity::Creek,
-                            6 => Particularity::Grasland,
-                            7 => Particularity::Grasland,
-                            8 => Particularity::Grasland,
-                            9 => Particularity::River,
-                            _ => Particularity::Carravan
-                        }
-                    }).collect()
-                },
-                Terrain::Forest => {
-                    let how_many_particularities = rng2.sample(&Uniform::new_inclusive(0, 2));
-
-                    rng2.sample_iter(&Uniform::new_inclusive(1, 9)).take(how_many_particularities).map(|number| {
-                        match number {
-                            1 => Particularity::Town,
-                            2 => Particularity::River,
-                            3 => Particularity::Creek,
-                            4 => Particularity::Creek,
-                            5 => Particularity::Clearing,
-                            6 => Particularity::Clearing,
-                            7 => Particularity::Clearing,
-                            8 => Particularity::Pond,
-                            _ => Particularity::Carravan
-                        }
-                    }).collect()
-                },
-                Terrain::Mountain => {
-                    let how_many_particularities = rng2.sample(&Uniform::new_inclusive(0, 1));
-
-                    rng2.sample_iter(&Uniform::new_inclusive(1, 8)).take(how_many_particularities).map(|number| {
-                        match number {
-                            1 => Particularity::Town,
-                            2 => Particularity::River,
-                            3 => Particularity::Canyon,
-                            4 => Particularity::Bolders,
-                            5 => Particularity::Bolders,
-                            6 => Particularity::Bolders,
-                            7 => Particularity::Lake,
-                            _ => Particularity::Carravan
-                        }
-                    }).collect()
-                }
-            };
-
-            let region = Region {
-                id: region_id,
-                terrain,
-                particularities: SelectionStorage::new_from(&particularities),
-                buildings: SelectionStorage::new(),
-                mapped: false,
-                resources: 10
-            };
-            region_id += 1;
-
-            region
-        }).collect();
-
-        Island {
-            regions: SelectionStorage::new_from(&regions)
-        }
-    }
-
-    pub fn plain() -> Island {
         Island {
             regions: SelectionStorage::new()
         }
@@ -198,14 +92,14 @@ pub enum Terrain {
     Mountain
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
 pub enum Particularity {
 	Town,
 	River,
 	Carravan,
     Merchant,
     Camp,
-    Item(Item),
+    Item(Equipment),
     Canyon,
     Bolders,
     Grasland,
@@ -226,17 +120,6 @@ pub struct Expedition {
 impl Expedition {
     pub fn new() -> Expedition {
         Expedition {
-            explorers: SelectionStorage::new_from(&vec![
-                Explorer { id: 0, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Ranger]), region: None, inventory: SelectionStorage::new_from(&vec![Equipment::SurvivalKit]) },
-                Explorer { id: 1, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Cartographer]), region: None, inventory: SelectionStorage::new_from(&vec![Equipment::ClimbingGear]) },
-                Explorer { id: 2, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Engineer]), region: None, inventory: SelectionStorage::new_from(&vec![Equipment::HotAirBalloon]) },
-                Explorer { id: 3, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Sailor]), region: None, inventory: SelectionStorage::new_from(&vec![Equipment::Boat]) }
-            ])
-        }
-    }
-
-    pub fn plain() -> Expedition {
-        Expedition {
             explorers: SelectionStorage::new()
         }
     }
@@ -247,30 +130,11 @@ pub struct Explorer {
     pub id: ExplorerId,
     pub traits: SelectionStorage<ExplorerTrait>,
     pub region: Option<RegionId>,
-    pub inventory: SelectionStorage<Equipment>
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum ExplorerTrait {
-    Ranger,
-    Cartographer,
-    Engineer,
-    Sailor
-}
-
-impl fmt::Display for ExplorerTrait {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ExplorerTrait::Ranger => write!(f, "Ranger"),
-            ExplorerTrait::Cartographer => write!(f, "Cartographer"),
-            ExplorerTrait::Engineer => write!(f, "Engineer"),
-            ExplorerTrait::Sailor => write!(f, "Sailor")
-        }
-    }
+    pub inventory: SelectionStorage<Item>
 }
 
 impl Explorer {
-    pub fn actions(&self) -> Vec<ExplorerAction> {
+    pub fn trait_actions(&self) -> Vec<ExplorerAction> {
         let mut actions = vec![];
         if self.region.is_some() {
             for explorer_trait in self.traits.iter() {
@@ -293,6 +157,34 @@ impl fmt::Display for Explorer {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum ExplorerAction {
+    Build,
+    Hunt,
+    Sail,
+    Map,
+    Wait
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum ExplorerTrait {
+    Ranger,
+    Cartographer,
+    Engineer,
+    Sailor
+}
+
+impl fmt::Display for ExplorerTrait {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ExplorerTrait::Ranger => write!(f, "Ranger"),
+            ExplorerTrait::Cartographer => write!(f, "Cartographer"),
+            ExplorerTrait::Engineer => write!(f, "Engineer"),
+            ExplorerTrait::Sailor => write!(f, "Sailor")
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
 pub enum Equipment {
     SurvivalKit,
     HotAirBalloon,
@@ -300,36 +192,8 @@ pub enum Equipment {
     ClimbingGear
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
 pub enum Item {
     Equipment(Equipment),
-    Text(String)
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Realm {
-    pub island: Island,
-    pub expedition: Expedition,
-    pub id: RealmId,
-    pub age: usize
-}
-
-impl Realm {
-    pub fn plain(id: RealmId) -> Realm {
-        Realm {
-            island: Island::plain(),
-            expedition: Expedition::plain(),
-            id,
-            age: 0
-        }
-    }
-
-    pub fn new(id: RealmId) -> Realm {
-        Realm {
-            island: Island::new(),
-            expedition: Expedition::new(),
-            id,
-            age: 0
-        }
-    }
+    Particularity(Particularity)
 }

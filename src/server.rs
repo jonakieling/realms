@@ -18,6 +18,7 @@ use tui::style::{Style, Color};
 
 use tokens::*;
 use utility::*;
+use realms::*;
 
 pub struct Universe {
 	pub listener: TcpListener,
@@ -80,7 +81,7 @@ impl Universe {
 			        },
 			        RealmsProtocol::RequestNewRealm => {
 			        	let id = self.realms.len();
-				        let realm = Realm::new(id);
+				        let realm = Realms::Dev.create(id);
 						send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 			    		self.realms.push(realm);
 			    		self.requests.push((client_id, request));
@@ -98,7 +99,7 @@ impl Universe {
 			        	} else {
 			        		// send new realm on miss
 				        	let id = self.realms.len();
-				        	realm = Realm::new(id);
+				        	realm = Realms::Dev.create(id);
 							send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 				    		self.realms.push(realm);
 			        	}

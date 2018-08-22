@@ -11,6 +11,8 @@ extern crate termion;
 
 extern crate chrono;
 
+extern crate itertools;
+
 use std::env;
 use std::io;
 use std::sync::mpsc;
@@ -29,6 +31,7 @@ mod client_dashboard;
 mod server;
 mod tokens;
 mod utility;
+mod realms;
 
 #[derive(Debug)]
 pub enum Mode {

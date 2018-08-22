@@ -366,7 +366,7 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
             if let Some(explorer) = data.realm.expedition.explorers.current() {
                 Paragraph::default()
                     .text(
-                        &format!("{:?}", explorer.actions())
+                        &format!("{:?}", explorer.trait_actions())
                     ).block(Block::default().borders(Borders::ALL).title("Actions [Esc to exit]").border_style(Style::default().fg(Color::Yellow)))
                     .wrap(true)
                     .render(t, area);

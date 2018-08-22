@@ -63,7 +63,7 @@ impl Periscope {
 		}
 
 		// init realm, beware that id 0 is a valid id so this might geht overriden by the server side realm with id 0
-		let realm = Realm::plain(0);
+		let realm = Realm::new(0);
 
 		Periscope {
 			stream,
@@ -175,14 +175,17 @@ fn handle_realms_events(stream: &mut TcpStream, data: &mut Data, key: event::Key
 			data.realms.last();
 		},
 		event::Key::Char('\n') => {
-    		let realm_id = data.realms.current().expect("could not access current realm selection.");
-    		let current_realm_id = data.realm.id;
-    		if *realm_id != current_realm_id || data.realm.island.regions.iter().len() == 0 {
-	    		if let RealmsProtocol::Realm(response_realm) = send_request(stream, data.id, RealmsProtocol::RequestRealm(*realm_id)) {
-					data.realm = response_realm;
-				}
+    		{
+    			let realm_id = data.realms.current().expect("could not access current realm selection.");
+	    		let current_realm_id = data.realm.id;
+	    		if *realm_id != current_realm_id || data.realm.island.regions.iter().len() == 0 {
+		    		if let RealmsProtocol::Realm(response_realm) = send_request(stream, data.id, RealmsProtocol::RequestRealm(*realm_id)) {
+						data.realm = response_realm;
+					}
+	    		}
+		    	data.active = InteractiveUi::Regions;
     		}
-	    	data.active = InteractiveUi::Regions;
+			update_explorer_available_orders(data);
 		},
 		_ => { }
 	}
@@ -198,7 +201,6 @@ fn handle_regions_events(_stream: &mut TcpStream, data: &mut Data, key: event::K
 		},
 		event::Key::Right => {
 	    	data.active = InteractiveUi::Explorers;
-        	sync_regions_with_explorer(data);
 			update_explorer_available_orders(data);
 		},
 		event::Key::Left => {
@@ -215,13 +217,11 @@ fn handle_explorer_events(_stream: &mut TcpStream, data: &mut Data, key: event::
 	match key {
 		event::Key::Up => {
 	    	data.realm.expedition.explorers.prev();
-        	sync_regions_with_explorer(data);
 			update_explorer_available_orders(data);
 		},
 		event::Key::Down => {
 	    	data.realm.expedition.explorers.next();
 	    	update_explorer_available_orders(data);
-        	sync_regions_with_explorer(data);
 		},
 		event::Key::Right | event::Key::Char('\n') => {
 	    	data.active = InteractiveUi::ExplorerOrders;
@@ -310,7 +310,6 @@ fn handle_explorer_move_events(stream: &mut TcpStream, data: &mut Data, key: eve
 				data.realm.island.regions.at(last_index);
 				data.realm.expedition.explorers.at(last_explorers_index);
     		}
-        	sync_regions_with_explorer(data);
 	    	data.active = InteractiveUi::ExplorerOrders;
 		},
 		_ => { }
@@ -409,6 +408,9 @@ fn sync_regions_with_explorer(data: &mut Data) {
 }
 
 fn update_explorer_available_orders(data: &mut Data) {
+
+	sync_regions_with_explorer(data);
+
 	if let Some(explorer) = data.realm.expedition.explorers.current() {
 	    if explorer.region.is_some() {
 	    	data.explorer_orders = SelectionStorage::new_from(&vec![ExplorerOrders::Inventory, ExplorerOrders::Actions, ExplorerOrders::Move]);
@@ -423,7 +425,7 @@ fn explorer_action(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, 
 
 	if let Some(region) = regions.current() {
 		if let Some(explorer) = explorers.current() {
-			if let Some(action) = explorer.actions().first() {
+			if let Some(action) = explorer.trait_actions().first() {
 				request = send_request(stream, client, RealmsProtocol::Explorer(Move::Action(realm_id, region.id, explorer.id, action.clone())));
 			}
 		}
