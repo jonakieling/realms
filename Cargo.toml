@@ -1,5 +1,5 @@
 [package]
-name = "realms-client"
+name = "realms"
 version = "0.1.0"
 authors = ["Jonathan Kieling <code@j0na.net>"]
 
