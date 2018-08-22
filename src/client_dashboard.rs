@@ -129,10 +129,6 @@ fn draw_realm_ui(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 	    	if let InteractiveUi::Regions = data.active {
 	    	    border_style = Style::default().fg(Color::Yellow);
 	    	}
-	    	let mut regions_list_style = Style::default();
-	    	if let InteractiveUi::Regions = data.active {
-	    	    regions_list_style = Style::default().fg(Color::Yellow);
-	    	}
 	        SelectableList::default()
 	            .block(Block::default().borders(Borders::ALL).title(
                     &format!("Island {}", data.realm.id.clone())
@@ -141,7 +137,7 @@ fn draw_realm_ui(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 	            .items(&regions)
 	            .select(region_index)
 	            .highlight_style(
-	                regions_list_style
+	                Style::default().fg(Color::Yellow)
 	            )
 	            .render(t, &chunks[0]);
     		// end SelectableList::default()

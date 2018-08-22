@@ -18,8 +18,8 @@ pub enum RealmsProtocol {
     RequestRealm(RealmId),
     Realm(Realm),
     Explorer(Move),
-    DropGear(RealmId, RegionId, ExplorerId, Gear),
-    PickupGear(RealmId, RegionId, ExplorerId, Gear),
+    DropItem(RealmId, RegionId, ExplorerId, Item),
+    PickItem(RealmId, RegionId, ExplorerId, Item),
     Quit,
     Void
 }
@@ -205,7 +205,7 @@ pub enum Particularity {
 	Carravan,
     Merchant,
     Camp,
-    Gear(Gear),
+    Item(Item),
     Canyon,
     Bolders,
     Grasland,
@@ -227,10 +227,10 @@ impl Expedition {
     pub fn new() -> Expedition {
         Expedition {
             explorers: SelectionStorage::new_from(&vec![
-                Explorer { id: 0, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Ranger]), region: None, inventory: SelectionStorage::new_from(&vec![Gear::SurvivalKit]) },
-                Explorer { id: 1, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Cartographer]), region: None, inventory: SelectionStorage::new_from(&vec![Gear::ClimbingGear]) },
-                Explorer { id: 2, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Engineer]), region: None, inventory: SelectionStorage::new_from(&vec![Gear::HotAirBalloon]) },
-                Explorer { id: 3, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Sailor]), region: None, inventory: SelectionStorage::new_from(&vec![Gear::Boat]) }
+                Explorer { id: 0, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Ranger]), region: None, inventory: SelectionStorage::new_from(&vec![Equipment::SurvivalKit]) },
+                Explorer { id: 1, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Cartographer]), region: None, inventory: SelectionStorage::new_from(&vec![Equipment::ClimbingGear]) },
+                Explorer { id: 2, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Engineer]), region: None, inventory: SelectionStorage::new_from(&vec![Equipment::HotAirBalloon]) },
+                Explorer { id: 3, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Sailor]), region: None, inventory: SelectionStorage::new_from(&vec![Equipment::Boat]) }
             ])
         }
     }
@@ -247,7 +247,7 @@ pub struct Explorer {
     pub id: ExplorerId,
     pub traits: SelectionStorage<ExplorerTrait>,
     pub region: Option<RegionId>,
-    pub inventory: SelectionStorage<Gear>
+    pub inventory: SelectionStorage<Equipment>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -293,11 +293,17 @@ impl fmt::Display for Explorer {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum Gear {
+pub enum Equipment {
     SurvivalKit,
     HotAirBalloon,
     Boat,
     ClimbingGear
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum Item {
+    Equipment(Equipment),
+    Text(String)
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
