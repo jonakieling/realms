@@ -170,6 +170,72 @@ impl Universe {
 			    			self.requests.push((client_id, RealmsProtocol::Explorer(Move::Action(realm_id, region_id, explorer_id, action))));
 			        	}
 			        },
+			        RealmsProtocol::DropEquipment(realm_id, region_id, explorer_id, item) => {
+						for realm in &mut self.realms {
+			        	    if realm_id == realm.id {
+		        	    		for region in &mut realm.island.regions.iter_mut() {
+			        	    		if region_id == region.id {
+			        	    			for explorer in realm.expedition.explorers.iter_mut() {
+					        	    		if explorer.id == explorer_id {
+					        	    			if let Some(explorer_region) = explorer.region {
+					        	    				if explorer_region == region_id {
+					        	    					region.particularities.insert(Particularity::ExplorerItem(item.clone()));
+					        	    					let mut item_index_to_remove: Option<usize> = None;
+					        	    					for (index, inventory_item) in explorer.inventory.iter_mut().enumerate() {
+					        	    					    if let ExplorerItem::Equipment(equipment) = inventory_item {
+					        	    					    	if *equipment == item {
+					        	    					        	item_index_to_remove = Some(index);
+					        	    					    	}
+					        	    					    }
+					        	    					}
+					        	    					if let Some(index) = item_index_to_remove {
+					        	    						explorer.inventory.at(index);
+					        	    						explorer.inventory.extract_current();
+					        	    					}
+					        	    				}
+					        	    			}
+					        	    		}
+					        	    	}
+					        	    }
+					        	}
+								send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
+		    					self.requests.push((client_id, RealmsProtocol::DropEquipment(realm_id, region_id, explorer_id, item.clone())));
+					        }
+					    }
+			        },
+			        RealmsProtocol::PickEquipment(realm_id, region_id, explorer_id, item) => {
+						for realm in &mut self.realms {
+			        	    if realm_id == realm.id {
+		        	    		for region in &mut realm.island.regions.iter_mut() {
+			        	    		if region_id == region.id {
+			        	    			for explorer in realm.expedition.explorers.iter_mut() {
+					        	    		if explorer.id == explorer_id {
+					        	    			if let Some(explorer_region) = explorer.region {
+					        	    				if explorer_region == region_id {
+					        	    					explorer.inventory.insert(ExplorerItem::Equipment(item.clone()));
+					        	    					let mut item_index_to_remove: Option<usize> = None;
+					        	    					for (index, particularity_item) in region.particularities.iter_mut().enumerate() {
+					        	    					    if let Particularity::ExplorerItem(equipment) = particularity_item {
+					        	    					    	if *equipment == item {
+					        	    					        	item_index_to_remove = Some(index);
+					        	    					    	}
+					        	    					    }
+					        	    					}
+					        	    					if let Some(index) = item_index_to_remove {
+					        	    						region.particularities.at(index);
+					        	    						region.particularities.extract_current();
+					        	    					}
+					        	    				}
+					        	    			}
+					        	    		}
+					        	    	}
+					        	    }
+					        	}
+								send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
+		    					self.requests.push((client_id, RealmsProtocol::PickEquipment(realm_id, region_id, explorer_id, item.clone())));
+					        }
+					    }
+			        },
 			        RealmsProtocol::Quit => {
 						send_response(&RealmsProtocol::Quit, &stream)?;
 						stream.shutdown(Shutdown::Both).expect("stream could not shut down.");

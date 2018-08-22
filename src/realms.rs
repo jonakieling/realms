@@ -60,7 +60,7 @@ fn realm_dev(id: usize) -> Realm {
                         5 => Particularity::Cliffs,
                         6 => Particularity::Island,
                         7 => Particularity::Island,
-                        8 => Particularity::Item(Equipment::Boat),
+                        8 => Particularity::ExplorerItem(Equipment::Boat),
                         _ => Particularity::Carravan
                     }
                 }).unique().collect()
@@ -137,10 +137,10 @@ fn realm_dev(id: usize) -> Realm {
 
     let expedition = Expedition {
         explorers: SelectionStorage::new_from(&vec![
-            Explorer { id: 0, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Ranger]), region: None, inventory: SelectionStorage::new_from(&vec![Item::Equipment(SurvivalKit)]) },
-            Explorer { id: 1, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Cartographer]), region: None, inventory: SelectionStorage::new_from(&vec![Item::Equipment(ClimbingGear)]) },
-            Explorer { id: 2, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Engineer]), region: None, inventory: SelectionStorage::new_from(&vec![Item::Equipment(HotAirBalloon)]) },
-            Explorer { id: 3, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Sailor]), region: None, inventory: SelectionStorage::new_from(&vec![Item::Equipment(Boat)]) }
+            Explorer { id: 0, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Ranger]), region: None, inventory: SelectionStorage::new_from(&vec![ExplorerItem::Equipment(SurvivalKit)]) },
+            Explorer { id: 1, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Cartographer]), region: None, inventory: SelectionStorage::new_from(&vec![ExplorerItem::Equipment(ClimbingGear)]) },
+            Explorer { id: 2, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Engineer]), region: None, inventory: SelectionStorage::new_from(&vec![ExplorerItem::Equipment(HotAirBalloon)]) },
+            Explorer { id: 3, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Sailor]), region: None, inventory: SelectionStorage::new_from(&vec![ExplorerItem::Equipment(Boat)]) }
         ])
     };
 

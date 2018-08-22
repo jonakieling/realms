@@ -99,7 +99,7 @@ pub enum Particularity {
 	Carravan,
     Merchant,
     Camp,
-    Item(Equipment),
+    ExplorerItem(Equipment),
     Canyon,
     Bolders,
     Grasland,
@@ -130,7 +130,7 @@ pub struct Explorer {
     pub id: ExplorerId,
     pub traits: SelectionStorage<ExplorerTrait>,
     pub region: Option<RegionId>,
-    pub inventory: SelectionStorage<Item>
+    pub inventory: SelectionStorage<ExplorerItem>
 }
 
 impl Explorer {
@@ -193,7 +193,7 @@ pub enum Equipment {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
-pub enum Item {
+pub enum ExplorerItem {
     Equipment(Equipment),
     Particularity(Particularity)
 }

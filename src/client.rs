@@ -347,11 +347,32 @@ fn handle_explorer_actions_events(stream: &mut TcpStream, data: &mut Data, key: 
 	}
 }
 
-fn handle_explorer_inventory_events(_stream: &mut TcpStream, data: &mut Data, key: event::Key) {
+fn handle_explorer_inventory_events(stream: &mut TcpStream, data: &mut Data, key: event::Key) {
 	match key {
 		event::Key::Up => {
+			if let Some(ref mut explorer) = data.realm.expedition.explorers.current_mut() {
+			    explorer.inventory.prev();
+			}
 		},
 		event::Key::Down => {
+			if let Some(ref mut explorer) = data.realm.expedition.explorers.current_mut() {
+			    explorer.inventory.next();
+			}
+		},
+		event::Key::Char('e') => {
+			let last_explorers_index = data.realm.expedition.explorers.current_index();
+    		// todo useage of equipement can get triggered here
+        	sync_regions_with_explorer(data);
+			data.realm.expedition.explorers.at(last_explorers_index);
+		},
+		event::Key::Char('d') => {
+			let last_explorers_index = data.realm.expedition.explorers.current_index();
+    		if let RealmsProtocol::Realm(response_realm) = explorer_drop(stream, data.id, data.realm.id, &mut data.realm.island.regions, &mut data.realm.expedition.explorers) {
+	    		data.realm = response_realm;
+				data.active = InteractiveUi::Particularities;
+        		sync_regions_with_explorer(data);
+			}
+			data.realm.expedition.explorers.at(last_explorers_index);
 		},
 		event::Key::Esc => {
 	    	data.active = InteractiveUi::ExplorerOrders;
@@ -365,7 +386,7 @@ fn handle_explorer_inventory_events(_stream: &mut TcpStream, data: &mut Data, ke
 	}
 }
 
-fn handle_particularities_events(_stream: &mut TcpStream, data: &mut Data, key: event::Key) {
+fn handle_particularities_events(stream: &mut TcpStream, data: &mut Data, key: event::Key) {
 	match key {
 		event::Key::Up => {
 			if let Some(region) = data.realm.island.regions.current_mut() {
@@ -384,6 +405,15 @@ fn handle_particularities_events(_stream: &mut TcpStream, data: &mut Data, key: 
 		event::Key::Right => {
 	    	data.active = InteractiveUi::Regions;
 		},
+		event::Key::Char('e') => {
+			let last_explorers_index = data.realm.expedition.explorers.current_index();
+			if let RealmsProtocol::Realm(response_realm) = explorer_handle_particularity(stream, data.id, data.realm.id, &mut data.realm.island.regions, &mut data.realm.expedition.explorers) {
+	    		data.realm = response_realm;
+				data.active = InteractiveUi::ExplorerInventory;
+        		sync_regions_with_explorer(data);
+			}
+			data.realm.expedition.explorers.at(last_explorers_index);
+		}
 		event::Key::Char('l') => {
 			data.active = InteractiveUi::Realms;
 		},
@@ -427,6 +457,40 @@ fn explorer_action(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, 
 		if let Some(explorer) = explorers.current() {
 			if let Some(action) = explorer.trait_actions().first() {
 				request = send_request(stream, client, RealmsProtocol::Explorer(Move::Action(realm_id, region.id, explorer.id, action.clone())));
+			}
+		}
+	}
+
+	request
+}
+
+fn explorer_drop(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, regions: &mut SelectionStorage<Region>, explorers: &mut SelectionStorage<Explorer>) -> RealmsProtocol {
+	let mut request = RealmsProtocol::Void;
+
+	if let Some(region) = regions.current() {
+		if let Some(explorer) = explorers.current() {
+			if let Some(ExplorerItem::Equipment(item)) = explorer.inventory.current() {
+				request = send_request(stream, client, RealmsProtocol::DropEquipment(realm_id, region.id, explorer.id, item.clone()));
+			}
+		}
+	}
+
+	request
+}
+
+fn explorer_handle_particularity(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, regions: &mut SelectionStorage<Region>, explorers: &mut SelectionStorage<Explorer>) -> RealmsProtocol {
+	let mut request = RealmsProtocol::Void;
+
+	if let Some(region) = regions.current() {
+		if let Some(explorer) = explorers.current() {
+			match region.particularities.current() {
+			    Some(Particularity::ExplorerItem(item)) => {
+			    	request = send_request(stream, client, RealmsProtocol::PickEquipment(realm_id, region.id, explorer.id, item.clone()));
+			    },
+			    Some(particularity) => {
+			    	request = send_request(stream, client, RealmsProtocol::InvestigateParticularity(realm_id, region.id, explorer.id, particularity.clone()));
+			    },
+			    _ => { }
 			}
 		}
 	}

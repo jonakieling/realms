@@ -229,7 +229,7 @@ fn draw_realm_region(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
             match data.active {
                 InteractiveUi::Particularities => {
                     SelectableList::default()
-                        .block(Block::default().borders(Borders::ALL).title("Particularities")
+                        .block(Block::default().borders(Borders::ALL).title("Particularities [e pick]")
                         .border_style(Style::default().fg(Color::Yellow)))
                         .items(&particularities)
                         .select(particularities_index)
@@ -327,6 +327,16 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
         format!("{:?}", explorer_order)
     }).collect();
 
+
+    let mut inventory_index = 0;
+    let mut inventory: Vec<String> = vec![];
+    if let Some(explorer) = data.realm.expedition.explorers.current() {
+        inventory_index = explorer.inventory.current_index();
+        inventory = explorer.inventory.iter().map(|item| {
+            format!("{:?}", item)
+        }).collect();
+    }
+
     match data.active {
         InteractiveUi::Explorers => {
             SelectableList::default()
@@ -352,15 +362,29 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
             // end SelectableList::default()
         },
         InteractiveUi::ExplorerInventory => {
-            if let Some(explorer) = data.realm.expedition.explorers.current() {
-                Paragraph::default()
-                    .text(
-                        &format!("{:?}", explorer.inventory.storage())
-                    ).block(Block::default().borders(Borders::ALL).title("Inventory [Esc to exit]").border_style(Style::default().fg(Color::Yellow)))
-                    .wrap(true)
-                    .render(t, area);
-                // end Paragraph::default() 
-            }
+            SelectableList::default()
+                .block(Block::default().borders(Borders::ALL).title("Inventory [Esc to exit, d drop]")
+                .border_style(Style::default().fg(Color::Yellow)))
+                .items(&inventory)
+                .select(inventory_index)
+                .highlight_style(
+                    Style::default().fg(Color::Yellow)
+                )
+                .highlight_symbol("→")
+                .render(t, area);
+            // end SelectableList::default()
+        },
+        InteractiveUi::Particularities => {
+            SelectableList::default()
+                .block(Block::default().borders(Borders::ALL).title("Inventory")
+                .border_style(Style::default()))
+                .items(&inventory)
+                .select(inventory_index)
+                .highlight_style(
+                    Style::default().fg(Color::Yellow)
+                )
+                .render(t, area);
+            // end SelectableList::default()
         },
         InteractiveUi::ExplorerActions => {
             if let Some(explorer) = data.realm.expedition.explorers.current() {
