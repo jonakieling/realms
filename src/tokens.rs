@@ -1,4 +1,5 @@
 
+use utility::SelectionStorage;
 use std::fmt;
 use rand::{thread_rng, distributions::Uniform, Rng};
 
@@ -12,7 +13,7 @@ pub enum RealmsProtocol {
     Register,
     Connect(ClientId),
     RequestRealmsList,
-    RealmsList(Vec<RealmId>),
+    RealmsList(SelectionStorage<RealmId>),
     RequestNewRealm,
     RequestRealm(RealmId),
     Realm(Realm),
@@ -44,7 +45,7 @@ impl fmt::Display for RealmsProtocol {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Island {
-    pub regions: Vec<Region>
+    pub regions: SelectionStorage<Region>
 }
 
 impl Island {
@@ -149,8 +150,8 @@ impl Island {
             let region = Region {
                 id: region_id,
                 terrain,
-                particularities,
-                buildings: vec![],
+                particularities: SelectionStorage::new_from(&particularities),
+                buildings: SelectionStorage::new(),
                 mapped: false,
                 resources: 10
             };
@@ -160,13 +161,13 @@ impl Island {
         }).collect();
 
         Island {
-            regions
+            regions: SelectionStorage::new_from(&regions)
         }
     }
 
     pub fn plain() -> Island {
         Island {
-            regions: vec![]
+            regions: SelectionStorage::new()
         }
     }
 }
@@ -175,8 +176,8 @@ impl Island {
 pub struct Region {
     pub id: RegionId,
     pub terrain: Terrain,
-    pub particularities: Vec<Particularity>,
-    pub buildings: Vec<String>,
+    pub particularities: SelectionStorage<Particularity>,
+    pub buildings: SelectionStorage<String>,
     pub mapped: bool,
     pub resources: usize
 }
@@ -217,24 +218,24 @@ pub enum Particularity {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Expedition {
-    pub explorers: Vec<Explorer>
+    pub explorers: SelectionStorage<Explorer>
 }
 
 impl Expedition {
     pub fn new() -> Expedition {
         Expedition {
-            explorers: vec![
-                Explorer { id: 0, traits: vec![ExplorerTrait::Ranger], region: None, inventory: vec![Gear::SurvivalKit] },
-                Explorer { id: 1, traits: vec![ExplorerTrait::Cartographer], region: None, inventory: vec![Gear::ClimbingGear] },
-                Explorer { id: 2, traits: vec![ExplorerTrait::Engineer], region: None, inventory: vec![Gear::HotAirBalloon] },
-                Explorer { id: 3, traits: vec![ExplorerTrait::Sailor], region: None, inventory: vec![Gear::Boat] }
-            ]
+            explorers: SelectionStorage::new_from(&vec![
+                Explorer { id: 0, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Ranger]), region: None, inventory: SelectionStorage::new_from(&vec![Gear::SurvivalKit]) },
+                Explorer { id: 1, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Cartographer]), region: None, inventory: SelectionStorage::new_from(&vec![Gear::ClimbingGear]) },
+                Explorer { id: 2, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Engineer]), region: None, inventory: SelectionStorage::new_from(&vec![Gear::HotAirBalloon]) },
+                Explorer { id: 3, traits: SelectionStorage::new_from(&vec![ExplorerTrait::Sailor]), region: None, inventory: SelectionStorage::new_from(&vec![Gear::Boat]) }
+            ])
         }
     }
 
     pub fn plain() -> Expedition {
         Expedition {
-            explorers: vec![]
+            explorers: SelectionStorage::new()
         }
     }
 }
@@ -242,9 +243,9 @@ impl Expedition {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Explorer {
     pub id: ExplorerId,
-    pub traits: Vec<ExplorerTrait>,
+    pub traits: SelectionStorage<ExplorerTrait>,
     pub region: Option<RegionId>,
-    pub inventory: Vec<Gear>
+    pub inventory: SelectionStorage<Gear>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -270,7 +271,7 @@ impl Explorer {
     pub fn actions(&self) -> Vec<ExplorerAction> {
         let mut actions = vec![];
         if self.region.is_some() {
-            for explorer_trait in &self.traits {
+            for explorer_trait in self.traits.iter() {
                 match explorer_trait {
                     ExplorerTrait::Ranger => actions.push(ExplorerAction::Hunt),
                     ExplorerTrait::Cartographer => actions.push(ExplorerAction::Map),

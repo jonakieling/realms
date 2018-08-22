@@ -120,8 +120,8 @@ fn draw_realm_ui(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 		.sizes(&[Size::Fixed(16), Size::Min(0)])
 	    .render(t, area, |t, chunks| {
 
-			let region_index = data.regions.current_index();
-			let regions: Vec<String> = data.regions.iter().map(|region| {
+			let region_index = data.realm.island.regions.current_index();
+			let regions: Vec<String> = data.realm.island.regions.iter().map(|region| {
 				format!("{}", region)
 		    }).collect();
 
@@ -152,7 +152,7 @@ fn draw_realm_ui(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 		        .render(t, &chunks[1], |t, chunks| {
 					draw_realm_expedition(t, &chunks[0], &data);
 					if let InteractiveUi::Explorers = data.active {
-		        		if data.explorers.current().expect("could not fetch current explorers selection.").region.is_some() {
+		        		if data.realm.expedition.explorers.current().expect("could not fetch current explorers selection.").region.is_some() {
 							draw_realm_region(t, &chunks[1], &data);
 		        		} else {
 					    	Paragraph::default()
@@ -182,7 +182,7 @@ fn draw_realm_ui(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 
 fn draw_realm_region(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 
-    let region = data.regions.current().expect("could not fetch current regions selection.");
+    let region = data.realm.island.regions.current().expect("could not fetch current regions selection.");
 
     Group::default()
         .direction(Direction::Horizontal)
@@ -195,7 +195,7 @@ fn draw_realm_region(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 
             let mut info = vec![];
             info.push(Item::StyledData(
-                    format!("{:?}", region.buildings),
+                    format!("{:?}", region.buildings.storage()),
                     &style
             ));
             info.push(Item::StyledData(
@@ -208,11 +208,11 @@ fn draw_realm_region(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
                         &green
                 ));
             }
-            for explorer in data.explorers.iter() {
+            for explorer in data.realm.expedition.explorers.iter() {
                 if let Some(explorer_region) = explorer.region {
                     if explorer_region == region.id {
                         info.push(Item::StyledData(
-                                format!("{:?}", explorer.traits),
+                                format!("{:?}", explorer.traits.storage()),
                                 &cyan
                         ));
                     }
@@ -253,12 +253,12 @@ fn draw_realm_expedition(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data)
 
 fn draw_realm_expedition_list(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 
-    let explorer_index = data.explorers.current_index();
-    let explorers: Vec<String> = data.explorers.iter().map(|explorer| {
+    let explorer_index = data.realm.expedition.explorers.current_index();
+    let explorers: Vec<String> = data.realm.expedition.explorers.iter().map(|explorer| {
         if let Some(explorer_region) = explorer.region {
-            format!("{:?} {}", explorer.traits, explorer_region)
+            format!("{:?} {}", explorer.traits.storage(), explorer_region)
         } else {
-            format!("{:?}", explorer.traits)
+            format!("{:?}", explorer.traits.storage())
         }
     }).collect();
 
@@ -301,8 +301,8 @@ fn draw_realm_expedition_list(t: &mut Terminal<RawBackend>, area: &Rect, data: &
 
 fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 
-    let region_index = data.regions.current_index();
-    let regions: Vec<String> = data.regions.iter().map(|region| {
+    let region_index = data.realm.island.regions.current_index();
+    let regions: Vec<String> = data.realm.island.regions.iter().map(|region| {
         format!("{}", region)
     }).collect();
 
@@ -336,10 +336,10 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
             // end SelectableList::default()
         },
         InteractiveUi::ExplorerInventory => {
-            if let Some(explorer) = data.explorers.current() {
+            if let Some(explorer) = data.realm.expedition.explorers.current() {
                 Paragraph::default()
                     .text(
-                        &format!("{:?}", explorer.inventory)
+                        &format!("{:?}", explorer.inventory.storage())
                     ).block(Block::default().borders(Borders::ALL).title("Inventory [Esc to exit]").border_style(Style::default().fg(Color::Yellow)))
                     .wrap(true)
                     .render(t, area);
@@ -347,7 +347,7 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
             }
         },
         InteractiveUi::ExplorerActions => {
-            if let Some(explorer) = data.explorers.current() {
+            if let Some(explorer) = data.realm.expedition.explorers.current() {
                 Paragraph::default()
                     .text(
                         &format!("{:?}", explorer.actions())
@@ -359,7 +359,7 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
         },
         InteractiveUi::ExplorerMove => {
             let mut title = "Move [Esc to exit]".to_string();
-            if let Some(explorer) = data.explorers.current() {
+            if let Some(explorer) = data.realm.expedition.explorers.current() {
                 if !explorer.region.is_some() {
                     title = "Embark [Esc to exit]".to_string();
                 }

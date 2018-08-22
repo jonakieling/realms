@@ -94,11 +94,15 @@ impl<T: Clone> SelectionStorage<T> {
         self.storage.iter()
     }
 
+    pub fn iter_mut(&mut self) -> slice::IterMut<T> {
+        self.storage.iter_mut()
+    }
+
     pub fn clear(&mut self) {
         self.storage.clear()
     }
 
-    pub fn storage(&self) -> Vec<T> {
-        self.storage.clone()
+    pub fn storage(&self) -> &Vec<T> {
+        &self.storage
     }
 }

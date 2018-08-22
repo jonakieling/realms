@@ -17,6 +17,7 @@ use tui::widgets::{List, Block, Borders, Item, Widget};
 use tui::style::{Style, Color};
 
 use tokens::*;
+use utility::*;
 
 pub struct Universe {
 	pub listener: TcpListener,
@@ -47,7 +48,7 @@ impl Universe {
 	    for stream in self.listener.incoming() {
 			let mut stream = stream.expect("could not get tcp stream.");
 			loop {
-			    let mut buffer = [0; 1024];
+			    let mut buffer = [0; 2024];
 
 			    stream.read(&mut buffer).expect("could not read request into buffer.");
 			    stream.flush().expect("could not flush request stream.");
@@ -66,10 +67,10 @@ impl Universe {
 			    		self.requests.push((id, request));
 			        },
 			        RealmsProtocol::RequestRealmsList => {
-		        		let realms = self.realms.iter().map(|realm| {
+		        		let realms: Vec<RealmId> = self.realms.iter().map(|realm| {
 		        			realm.id
 		        		}).collect();
-						send_response(&RealmsProtocol::RealmsList(realms), &stream)?;
+						send_response(&RealmsProtocol::RealmsList(SelectionStorage::new_from(&realms)), &stream)?;
 			    		self.requests.push((client_id, request));
 			    		for client in &mut self.clients {
 			    		    if client.id == client_id {
@@ -111,7 +112,7 @@ impl Universe {
 			        RealmsProtocol::Explorer(Move::ChangeRegion(realm_id, region_id, explorer_id)) => {
 			        	for realm in &mut self.realms {
 			        	    if realm_id == realm.id {
-			        	    	for explorer in &mut realm.expedition.explorers {
+			        	    	for explorer in &mut realm.expedition.explorers.iter_mut() {
 			        	    		if explorer.id == explorer_id {
 			        	    			explorer.region = Some(region_id);
 			        	    		}
@@ -126,9 +127,9 @@ impl Universe {
     	    			let mut allowed = false;
 			        	for realm in &mut self.realms {
 			        	    if realm_id == realm.id {
-		        	    		for region in &mut realm.island.regions {
+		        	    		for region in &mut realm.island.regions.iter_mut() {
 			        	    		if region_id == region.id {
-			        	    			for explorer in &mut realm.expedition.explorers {
+			        	    			for explorer in &mut realm.expedition.explorers.iter() {
 					        	    		if explorer.id == explorer_id {
 					        	    			if let Some(explorer_region) = explorer.region {
 					        	    				if explorer_region == region_id {
@@ -141,7 +142,7 @@ impl Universe {
 					        	    	if allowed {
 			        	    				match action {
 			        	    				    ExplorerAction::Build => {
-			        	    				    	region.buildings.push("\u{2302}".to_string());
+			        	    				    	region.buildings.insert("\u{2302}".to_string());
 			        	    				    },
 			        	    				    ExplorerAction::Map => {
 			        	    				    	region.mapped = true;
