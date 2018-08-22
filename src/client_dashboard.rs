@@ -224,16 +224,36 @@ fn draw_realm_region(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
                 .render(t, &chunks[0]);
             // end List::new()
 
-            let particularities = region.particularities.iter().map(|particularity| {
-                Item::StyledData(
-                    format!("{:?}", particularity),
-                    &style
-                )
-            });
-            List::new(particularities)
-                .block(Block::default().borders(Borders::ALL).title(&format!("Particularities")))
-                .render(t, &chunks[1]);
-            // end List::new()
+            let particularities_index = region.particularities.current_index();
+
+            let particularities: Vec<String> = region.particularities.iter().map(|particularity| {
+                format!("{:?}", particularity)
+            }).collect();
+
+            match data.active {
+                InteractiveUi::Particularities => {
+                    SelectableList::default()
+                        .block(Block::default().borders(Borders::ALL).title("Particularities")
+                        .border_style(Style::default().fg(Color::Yellow)))
+                        .items(&particularities)
+                        .select(particularities_index)
+                        .highlight_style(
+                            Style::default().fg(Color::Yellow)
+                        )
+                        .highlight_symbol("→")
+                        .render(t, &chunks[1]);
+                    // end SelectableList::default()
+                },
+                _ => {
+                    SelectableList::default()
+                        .block(Block::default().borders(Borders::ALL).title("Particularities")
+                        .border_style(Style::default()))
+                        .items(&particularities)
+                        .select(particularities_index)
+                        .render(t, &chunks[1]);
+                    // end SelectableList::default()
+                }
+            }
 
         });
     // end Group::default()

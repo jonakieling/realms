@@ -24,7 +24,8 @@ pub enum InteractiveUi {
 	Realms,
 	ExplorerMove,
 	ExplorerActions,
-	ExplorerInventory
+	ExplorerInventory,
+	Particularities
 }
 
 #[derive(Debug)]
@@ -138,6 +139,9 @@ fn handle_events(rx: &Receiver<Event>, stream: &mut TcpStream, data: &mut Data) 
 			    },
 			    InteractiveUi::ExplorerInventory => {
 			    	handle_explorer_inventory_events(stream, data, key);
+			    },
+			    InteractiveUi::Particularities => {
+			    	handle_particularities_events(stream, data, key);
 			    }
 			}
 
@@ -198,8 +202,7 @@ fn handle_regions_events(_stream: &mut TcpStream, data: &mut Data, key: event::K
 			update_explorer_available_orders(data);
 		},
 		event::Key::Left => {
-	    	data.active = InteractiveUi::ExplorerOrders;
-        	sync_regions_with_explorer(data);
+	    	data.active = InteractiveUi::Particularities;
 		},
 		event::Key::Char('l') => {
 			data.active = InteractiveUi::Realms;
@@ -256,8 +259,7 @@ fn handle_explorer_orders_events(_stream: &mut TcpStream, data: &mut Data, key: 
 			update_explorer_available_orders(data);
 		},
 		event::Key::Right => {
-	    	data.active = InteractiveUi::Regions;
-	    	data.realm.island.regions.at(0);
+	    	data.active = InteractiveUi::Particularities;
 		},
 		event::Key::Char('l') => {
 			data.active = InteractiveUi::Realms;
@@ -354,6 +356,34 @@ fn handle_explorer_inventory_events(_stream: &mut TcpStream, data: &mut Data, ke
 		},
 		event::Key::Esc => {
 	    	data.active = InteractiveUi::ExplorerOrders;
+		},
+		event::Key::Char('l') => {
+			data.active = InteractiveUi::Realms;
+		},
+		event::Key::Char('\n') => {
+		},
+		_ => { }
+	}
+}
+
+fn handle_particularities_events(_stream: &mut TcpStream, data: &mut Data, key: event::Key) {
+	match key {
+		event::Key::Up => {
+			if let Some(region) = data.realm.island.regions.current_mut() {
+			    region.particularities.prev();
+			}
+		},
+		event::Key::Down => {
+			if let Some(region) = data.realm.island.regions.current_mut() {
+			    region.particularities.next();
+			}
+		},
+		event::Key::Left => {
+	    	data.active = InteractiveUi::ExplorerOrders;
+			update_explorer_available_orders(data);
+		},
+		event::Key::Right => {
+	    	data.active = InteractiveUi::Regions;
 		},
 		event::Key::Char('l') => {
 			data.active = InteractiveUi::Realms;

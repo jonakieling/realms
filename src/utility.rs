@@ -49,6 +49,14 @@ impl<T: Clone> SelectionStorage<T> {
         }
     }
 
+    pub fn current_mut(&mut self) -> Option<&mut T> {
+        if self.storage.len() != 0 {
+            self.storage.get_mut(self.current_selection)
+        } else {
+            None
+        }
+    }
+
     pub fn last(&mut self) -> Option<&T> {
         if self.storage.len() != 0 {
             self.current_selection = self.storage.len() - 1;

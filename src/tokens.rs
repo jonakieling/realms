@@ -18,6 +18,8 @@ pub enum RealmsProtocol {
     RequestRealm(RealmId),
     Realm(Realm),
     Explorer(Move),
+    DropGear(RealmId, RegionId, ExplorerId, Gear),
+    PickupGear(RealmId, RegionId, ExplorerId, Gear),
     Quit,
     Void
 }
