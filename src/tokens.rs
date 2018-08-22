@@ -20,6 +20,7 @@ pub enum RealmsProtocol {
     DropEquipment(RealmId, RegionId, ExplorerId, Equipment),
     PickEquipment(RealmId, RegionId, ExplorerId, Equipment),
     InvestigateParticularity(RealmId, RegionId, ExplorerId, Particularity),
+    ForgetParticularity(RealmId, RegionId, ExplorerId, Particularity),
     Quit,
     Void
 }
@@ -195,5 +196,5 @@ pub enum Equipment {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
 pub enum ExplorerItem {
     Equipment(Equipment),
-    Particularity(Particularity)
+    Particularity(RegionId, Particularity)
 }

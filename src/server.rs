@@ -236,6 +236,51 @@ impl Universe {
 					        }
 					    }
 			        },
+			        RealmsProtocol::ForgetParticularity(realm_id, region_id, explorer_id, particularity) => {
+						for realm in &mut self.realms {
+			        	    if realm_id == realm.id {
+		        	    		for explorer in realm.expedition.explorers.iter_mut() {
+			        	    		if explorer.id == explorer_id {
+			        	    			let mut item_index_to_remove: Option<usize> = None;
+	        	    					for (index, inventory_item) in explorer.inventory.iter_mut().enumerate() {
+	        	    					    if let ExplorerItem::Particularity(investigated_region_id, investigated_item) = inventory_item {
+	        	    					    	if particularity == *investigated_item && region_id == *investigated_region_id {
+	        	    					        	item_index_to_remove = Some(index);
+	        	    					    	}
+	        	    					    }
+	        	    					}
+	        	    					if let Some(index) = item_index_to_remove {
+	        	    						explorer.inventory.at(index);
+	        	    						explorer.inventory.extract_current();
+	        	    					}
+			        	    		}
+			        	    	}
+								send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
+		    					self.requests.push((client_id, RealmsProtocol::ForgetParticularity(realm_id, region_id, explorer_id, particularity.clone())));
+					        }
+					    }
+			        },
+			        RealmsProtocol::InvestigateParticularity(realm_id, region_id, explorer_id, item) => {
+						for realm in &mut self.realms {
+			        	    if realm_id == realm.id {
+		        	    		for region in &mut realm.island.regions.iter_mut() {
+			        	    		if region_id == region.id {
+			        	    			for explorer in realm.expedition.explorers.iter_mut() {
+					        	    		if explorer.id == explorer_id {
+					        	    			if let Some(explorer_region) = explorer.region {
+					        	    				if explorer_region == region_id {
+					        	    					explorer.inventory.insert(ExplorerItem::Particularity(region_id, item.clone()));
+					        	    				}
+					        	    			}
+					        	    		}
+					        	    	}
+					        	    }
+					        	}
+								send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
+		    					self.requests.push((client_id, RealmsProtocol::InvestigateParticularity(realm_id, region_id, explorer_id, item.clone())));
+					        }
+					    }
+			        },
 			        RealmsProtocol::Quit => {
 						send_response(&RealmsProtocol::Quit, &stream)?;
 						stream.shutdown(Shutdown::Both).expect("stream could not shut down.");

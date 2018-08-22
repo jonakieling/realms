@@ -229,7 +229,7 @@ fn draw_realm_region(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
             match data.active {
                 InteractiveUi::Particularities => {
                     SelectableList::default()
-                        .block(Block::default().borders(Borders::ALL).title("Particularities [e pick]")
+                        .block(Block::default().borders(Borders::ALL).title("Particularities [Enter pick/investigate]")
                         .border_style(Style::default().fg(Color::Yellow)))
                         .items(&particularities)
                         .select(particularities_index)
@@ -363,7 +363,7 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
         },
         InteractiveUi::ExplorerInventory => {
             SelectableList::default()
-                .block(Block::default().borders(Borders::ALL).title("Inventory [Esc to exit, d drop]")
+                .block(Block::default().borders(Borders::ALL).title("Inventory [Esc to exit, Enter drop/forget]")
                 .border_style(Style::default().fg(Color::Yellow)))
                 .items(&inventory)
                 .select(inventory_index)

@@ -359,28 +359,19 @@ fn handle_explorer_inventory_events(stream: &mut TcpStream, data: &mut Data, key
 			    explorer.inventory.next();
 			}
 		},
-		event::Key::Char('e') => {
-			let last_explorers_index = data.realm.expedition.explorers.current_index();
-    		// todo useage of equipement can get triggered here
-        	sync_regions_with_explorer(data);
-			data.realm.expedition.explorers.at(last_explorers_index);
-		},
-		event::Key::Char('d') => {
+		event::Key::Char('\n') => {
 			let last_explorers_index = data.realm.expedition.explorers.current_index();
     		if let RealmsProtocol::Realm(response_realm) = explorer_drop(stream, data.id, data.realm.id, &mut data.realm.island.regions, &mut data.realm.expedition.explorers) {
 	    		data.realm = response_realm;
-				data.active = InteractiveUi::Particularities;
-        		sync_regions_with_explorer(data);
 			}
 			data.realm.expedition.explorers.at(last_explorers_index);
+    		sync_regions_with_explorer(data);
 		},
 		event::Key::Esc => {
 	    	data.active = InteractiveUi::ExplorerOrders;
 		},
 		event::Key::Char('l') => {
 			data.active = InteractiveUi::Realms;
-		},
-		event::Key::Char('\n') => {
 		},
 		_ => { }
 	}
@@ -399,25 +390,22 @@ fn handle_particularities_events(stream: &mut TcpStream, data: &mut Data, key: e
 			}
 		},
 		event::Key::Left => {
-	    	data.active = InteractiveUi::ExplorerOrders;
+	    	data.active = InteractiveUi::ExplorerInventory;
 			update_explorer_available_orders(data);
 		},
 		event::Key::Right => {
 	    	data.active = InteractiveUi::Regions;
 		},
-		event::Key::Char('e') => {
+		event::Key::Char('\n') => {
 			let last_explorers_index = data.realm.expedition.explorers.current_index();
 			if let RealmsProtocol::Realm(response_realm) = explorer_handle_particularity(stream, data.id, data.realm.id, &mut data.realm.island.regions, &mut data.realm.expedition.explorers) {
 	    		data.realm = response_realm;
-				data.active = InteractiveUi::ExplorerInventory;
-        		sync_regions_with_explorer(data);
 			}
 			data.realm.expedition.explorers.at(last_explorers_index);
+    		sync_regions_with_explorer(data);
 		}
 		event::Key::Char('l') => {
 			data.active = InteractiveUi::Realms;
-		},
-		event::Key::Char('\n') => {
 		},
 		_ => { }
 	}
@@ -469,8 +457,14 @@ fn explorer_drop(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, re
 
 	if let Some(region) = regions.current() {
 		if let Some(explorer) = explorers.current() {
-			if let Some(ExplorerItem::Equipment(item)) = explorer.inventory.current() {
-				request = send_request(stream, client, RealmsProtocol::DropEquipment(realm_id, region.id, explorer.id, item.clone()));
+			match explorer.inventory.current() {
+			    Some(ExplorerItem::Equipment(item)) => {
+			    	request = send_request(stream, client, RealmsProtocol::DropEquipment(realm_id, region.id, explorer.id, item.clone()));
+			    },
+			    Some(ExplorerItem::Particularity(region_id, particularity)) => {
+			    	request = send_request(stream, client, RealmsProtocol::ForgetParticularity(realm_id, *region_id, explorer.id, particularity.clone()));	
+			    },
+			    _ => { }
 			}
 		}
 	}
