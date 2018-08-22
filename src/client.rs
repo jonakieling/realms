@@ -254,7 +254,7 @@ fn handle_explorer_orders_events(_stream: &mut TcpStream, data: &mut Data, key: 
 		event::Key::Down => {
 	    	data.explorer_orders.next();
 		},
-		event::Key::Left | event::Key::Esc => {
+		event::Key::Left | event::Key::Backspace => {
 	    	data.active = InteractiveUi::Explorers;
 			update_explorer_available_orders(data);
 		},
@@ -289,7 +289,7 @@ fn handle_explorer_move_events(stream: &mut TcpStream, data: &mut Data, key: eve
 		event::Key::Down => {
 	    	data.realm.island.regions.next();
 		},
-		event::Key::Esc => {
+		event::Key::Backspace => {
 	    	data.active = InteractiveUi::ExplorerOrders;
 		},
 		event::Key::Char('l') => {
@@ -297,20 +297,13 @@ fn handle_explorer_move_events(stream: &mut TcpStream, data: &mut Data, key: eve
 		},
 		event::Key::Char('\n') => {
     		{
-				// request reset regions index, we set it back afterwards
-				let last_index = data.realm.island.regions.current_index();
-				let last_explorers_index = data.realm.expedition.explorers.current_index();
-
 	    		if let RealmsProtocol::Realm(response_realm) = explorer_move(stream, data.id, data.realm.id, &mut data.realm.island.regions, &mut data.realm.expedition.explorers) {
 		    		data.realm = response_realm;
-
-	    			update_explorer_available_orders(data);
 				}
-
-				data.realm.island.regions.at(last_index);
-				data.realm.expedition.explorers.at(last_explorers_index);
     		}
 	    	data.active = InteractiveUi::ExplorerOrders;
+
+			update_explorer_available_orders(data);
 		},
 		_ => { }
 	}
@@ -322,7 +315,7 @@ fn handle_explorer_actions_events(stream: &mut TcpStream, data: &mut Data, key: 
 		},
 		event::Key::Down => {
 		},
-		event::Key::Esc => {
+		event::Key::Backspace => {
 	    	data.active = InteractiveUi::ExplorerOrders;
 		},
 		event::Key::Char('l') => {
@@ -330,15 +323,12 @@ fn handle_explorer_actions_events(stream: &mut TcpStream, data: &mut Data, key: 
 		},
 		event::Key::Char('\n') => {
     		{
-				// request reset regions and explorers index, we set it back afterwards
-				let last_region_index = data.realm.island.regions.current_index();
+				// request reset explorers index, we set it back afterwards
 				let last_explorers_index = data.realm.expedition.explorers.current_index();
 
 	    		if let RealmsProtocol::Realm(response_realm) = explorer_action(stream, data.id, data.realm.id, &mut data.realm.island.regions, &mut data.realm.expedition.explorers) {
 		    		data.realm = response_realm;
 				}
-
-				data.realm.island.regions.at(last_region_index);
 				data.realm.expedition.explorers.at(last_explorers_index);
     		}
         	sync_regions_with_explorer(data);
@@ -367,7 +357,7 @@ fn handle_explorer_inventory_events(stream: &mut TcpStream, data: &mut Data, key
 			data.realm.expedition.explorers.at(last_explorers_index);
     		sync_regions_with_explorer(data);
 		},
-		event::Key::Esc => {
+		event::Key::Backspace => {
 	    	data.active = InteractiveUi::ExplorerOrders;
 		},
 		event::Key::Char('l') => {
@@ -390,7 +380,7 @@ fn handle_particularities_events(stream: &mut TcpStream, data: &mut Data, key: e
 			}
 		},
 		event::Key::Left => {
-	    	data.active = InteractiveUi::ExplorerInventory;
+	    	data.active = InteractiveUi::ExplorerOrders;
 			update_explorer_available_orders(data);
 		},
 		event::Key::Right => {

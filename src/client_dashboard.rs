@@ -363,7 +363,7 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
         },
         InteractiveUi::ExplorerInventory => {
             SelectableList::default()
-                .block(Block::default().borders(Borders::ALL).title("Inventory [Esc to exit, Enter drop/forget]")
+                .block(Block::default().borders(Borders::ALL).title("Inventory [Bsp to exit, Enter drop/forget]")
                 .border_style(Style::default().fg(Color::Yellow)))
                 .items(&inventory)
                 .select(inventory_index)
@@ -374,34 +374,22 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
                 .render(t, area);
             // end SelectableList::default()
         },
-        InteractiveUi::Particularities => {
-            SelectableList::default()
-                .block(Block::default().borders(Borders::ALL).title("Inventory")
-                .border_style(Style::default()))
-                .items(&inventory)
-                .select(inventory_index)
-                .highlight_style(
-                    Style::default().fg(Color::Yellow)
-                )
-                .render(t, area);
-            // end SelectableList::default()
-        },
         InteractiveUi::ExplorerActions => {
             if let Some(explorer) = data.realm.expedition.explorers.current() {
                 Paragraph::default()
                     .text(
                         &format!("{:?}", explorer.trait_actions())
-                    ).block(Block::default().borders(Borders::ALL).title("Actions [Esc to exit]").border_style(Style::default().fg(Color::Yellow)))
+                    ).block(Block::default().borders(Borders::ALL).title("Actions [Bsp to exit]").border_style(Style::default().fg(Color::Yellow)))
                     .wrap(true)
                     .render(t, area);
                 // end Paragraph::default() 
             }
         },
         InteractiveUi::ExplorerMove => {
-            let mut title = "Move [Esc to exit]".to_string();
+            let mut title = "Move [Bsp to exit]".to_string();
             if let Some(explorer) = data.realm.expedition.explorers.current() {
                 if !explorer.region.is_some() {
-                    title = "Embark [Esc to exit]".to_string();
+                    title = "Embark [Bsp to exit]".to_string();
                 }
             }
             SelectableList::default()
