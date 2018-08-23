@@ -71,6 +71,67 @@ impl Realm {
     }
 }
 
+pub trait LazyRealmAccess<'a> {
+    fn region(&'a mut self, region: RegionId) -> Option<&'a mut Region>;
+    fn region_explorer(&'a mut self, region: RegionId, explorer: ExplorerId) -> Option<&'a mut Explorer>;
+    fn explorer_region(&'a mut self, explorer: ExplorerId) -> Option<&'a mut Region>;
+    fn explorer(&'a mut self, explorer: ExplorerId) -> Option<&'a mut Explorer>;
+}
+
+impl<'a> LazyRealmAccess<'a> for Option<&'a mut Realm> {
+    fn explorer(&'a mut self, explorer: ExplorerId) -> Option<&'a mut Explorer> {
+        match self {
+            Some(realm) => {
+                realm.expedition.explorers.storage_mut().get_mut(explorer)
+            },
+            None => None,
+        }
+    }
+
+    fn region_explorer(&'a mut self, region: RegionId, explorer: ExplorerId) -> Option<&'a mut Explorer> {
+        match self {
+            Some(realm) => {
+                if let Some(explorer) = realm.expedition.explorers.storage_mut().get_mut(explorer) {
+                    if explorer.region == Some(region) {
+                        Some(explorer)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            },
+            None => None,
+        }
+    }
+
+    fn explorer_region(&'a mut self, explorer: ExplorerId) -> Option<&'a mut Region> {
+        match self {
+            Some(realm) => {
+                if let Some(explorer) = realm.expedition.explorers.storage_mut().get_mut(explorer) {
+                    if let Some(region) = explorer.region {
+                        realm.island.regions.storage_mut().get_mut(region)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            },
+            None => None,
+        }
+    }
+
+    fn region(&'a mut self, region: RegionId) -> Option<&'a mut Region> {
+        match self {
+            Some(realm) => {
+                realm.island.regions.storage_mut().get_mut(region)
+            },
+            None => None,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RealmObjective {
     EmbarkExplorers
