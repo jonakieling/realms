@@ -64,17 +64,23 @@ impl Universe {
 
 			    // seperate client and no-client request handling
 	        	if let Some(mut client) = current_client {
-	        	    handle_request(&mut self.requests, &mut self.realms, &mut stream, &mut client, request)?;
+	        		let response = handle_request(&mut self.requests, &mut self.realms, &mut client, request);
+	        	    send_response(&response, &stream)?;
+
 	        		let disconnect = !client.connected;
+
+	        		// 'update' client in list
 	        		self.clients.insert(client.id, client);
 
 	        	    if disconnect {
 	        	    	// draw update before client exits
 			    		draw(t, &self.requests, &self.clients, &self.realms)?;
+						stream.shutdown(Shutdown::Both).expect("stream could not shut down.");
 	        	    	break;
 	        	    }
 	        	} else {
-	        	    handle_connecting_requests(&mut self.clients, &mut self.requests, &mut stream, request)?;
+	        	    let response = handle_connecting_requests(&mut self.clients, &mut self.requests, request);
+	        	    send_response(&response, &stream)?;
 	        	}
 
 
@@ -91,62 +97,66 @@ impl Universe {
 	}
 }
 
-fn handle_connecting_requests(clients: &mut HashMap<Uuid, Client>, requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)>, stream: &mut TcpStream, request: RealmsProtocol) -> Result<(), io::Error> {
+fn handle_connecting_requests(clients: &mut HashMap<Uuid, Client>, requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)>, request: RealmsProtocol) -> RealmsProtocol {
 	match request {
 		// a connect request when the server could not find the id matching client acts as a register request.
         RealmsProtocol::Register | RealmsProtocol::Connect(_) => {
         	let id = Uuid::new_v4();
-			send_response(&RealmsProtocol::Connect(id), &stream)?;
 			clients.insert(id, Client::new(id));
     		requests.push((id, request, Local::now()));
+
+    		RealmsProtocol::Connect(id)
         },
         _ => {
-			send_response(&RealmsProtocol::Void, &stream)?;
+			RealmsProtocol::Void
 		}
 	}
-
-	Ok(())
 }
 
-fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)>, realms: &mut Vec<Realm>, stream: &mut TcpStream, client: &mut Client, request: RealmsProtocol) -> Result<(), io::Error> {
+fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)>, realms: &mut Vec<Realm>, client: &mut Client, request: RealmsProtocol) -> RealmsProtocol {
 	let client_id = client.id;
 	client.time = Local::now();
 
 	match request {
 		RealmsProtocol::Connect(id) => {
-			send_response(&RealmsProtocol::Connect(id), &stream)?;
 			client.connected = true;
     		requests.push((id, request, Local::now()));
+
+    		RealmsProtocol::Connect(id)
         },
         RealmsProtocol::RequestRealmsList => {
     		let realms: Vec<RealmId> = realms.iter().map(|realm| {
     			realm.id
     		}).collect();
-			send_response(&RealmsProtocol::RealmsList(SelectionStorage::new_from(&realms)), &stream)?;
     		requests.push((client_id, request, Local::now()));
+
+    		RealmsProtocol::RealmsList(SelectionStorage::new_from(&realms))
         },
         RealmsProtocol::RequestNewRealm => {
         	let id = realms.len();
 	        let mut realm = client.realm_variant.create(id);
-			send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
-    		realms.push(realm);
+    		realms.push(realm.clone());
     		requests.push((client_id, request, Local::now()));
+
+    		RealmsProtocol::Realm(realm)
         },
         RealmsProtocol::RequestRealm(realm_id) => {
         	if realms.len() > realm_id {
         	    if let Some(realm) = realms.get_mut(realm_id) {
-					send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
+    				requests.push((client_id, request, Local::now()));
+					RealmsProtocol::Realm(realm.clone())
         	    } else {
-					send_response(&RealmsProtocol::Void, &stream)?;
+					RealmsProtocol::Void
         	    }
         	} else {
         		// send new realm on miss
 	        	let id = realms.len();
 	        	let realm = client.realm_variant.create(id);
-				send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
-	    		realms.push(realm);
+				realms.push(realm.clone());
+    			requests.push((client_id, request, Local::now()));
+
+				RealmsProtocol::Realm(realm)
         	}
-    		requests.push((client_id, request, Local::now()));
         },
         RealmsProtocol::Explorer(Move::ChangeRegion(realm_id, region_id, explorer_id)) => {
         	if let Some(explorer) = realms.get_mut(realm_id).explorer(explorer_id) {
@@ -154,11 +164,11 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         	}
         	if let Some(mut realm) = realms.get_mut(realm_id) {
     	    	client.realm_variant.state(realm);
-				send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
+    			requests.push((client_id, request, Local::now()));
+				RealmsProtocol::Realm(realm.clone())
         	} else {
-				send_response(&RealmsProtocol::Void, &stream)?;
+				RealmsProtocol::Void
     	    }
-    		requests.push((client_id, request, Local::now()));
         },
         RealmsProtocol::Explorer(Move::Action(realm_id, region_id, explorer_id, action)) => {
 			let mut allowed = realms.get_mut(realm_id).region_explorer(region_id, explorer_id).is_some();
@@ -186,16 +196,15 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
 			if let Some(mut realm) = realms.get_mut(realm_id) {
 	        	if allowed {
     		    	client.realm_variant.state(realm);
-					send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
+    		    	requests.push((client_id, RealmsProtocol::Explorer(Move::Action(realm_id, region_id, explorer_id, action)), Local::now()));
+					RealmsProtocol::Realm(realm.clone())
+
 	        	} else {
-					send_response(&RealmsProtocol::Void, &stream)?;
+					RealmsProtocol::Void
 	        	}
 			} else {
-				send_response(&RealmsProtocol::Void, &stream)?;
+				RealmsProtocol::Void
     	    }
-        	if allowed {
-    			requests.push((client_id, RealmsProtocol::Explorer(Move::Action(realm_id, region_id, explorer_id, action)), Local::now()));
-        	}
         },
         RealmsProtocol::DropEquipment(realm_id, region_id, explorer_id, item) => {
         	if let Some(region) = realms.get_mut(realm_id).explorer_region(explorer_id) {
@@ -217,8 +226,11 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         	}
 
 			if let Some(mut realm) = realms.get_mut(realm_id) {
-				send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 				requests.push((client_id, RealmsProtocol::DropEquipment(realm_id, region_id, explorer_id, item.clone()), Local::now()));
+
+				RealmsProtocol::Realm(realm.clone())
+		    } else {
+		    	RealmsProtocol::Void
 		    }
         },
         RealmsProtocol::PickEquipment(realm_id, region_id, explorer_id, item) => {
@@ -241,8 +253,11 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         	}
 
 			if let Some(mut realm) = realms.get_mut(realm_id) {
-				send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 				requests.push((client_id, RealmsProtocol::PickEquipment(realm_id, region_id, explorer_id, item.clone()), Local::now()));
+
+				RealmsProtocol::Realm(realm.clone())
+		    } else {
+		    	RealmsProtocol::Void
 		    }
         },
         RealmsProtocol::ForgetParticularity(realm_id, region_id, explorer_id, particularity) => {
@@ -262,10 +277,11 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         	}
         	
 		    if let Some(mut realm) = realms.get_mut(realm_id) {
-	        	send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 				requests.push((client_id, RealmsProtocol::ForgetParticularity(realm_id, region_id, explorer_id, particularity.clone()), Local::now()));
+
+				RealmsProtocol::Realm(realm.clone())
 			} else {
-				send_response(&RealmsProtocol::Void, &stream)?;
+				RealmsProtocol::Void
     	    }
         },
         RealmsProtocol::InvestigateParticularity(realm_id, region_id, explorer_id, item) => {
@@ -274,24 +290,21 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         	}
 
 		    if let Some(mut realm) = realms.get_mut(realm_id) {
-	        	send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 				requests.push((client_id, RealmsProtocol::InvestigateParticularity(realm_id, region_id, explorer_id, item.clone()), Local::now()));
+
+				RealmsProtocol::Realm(realm.clone())
 			} else {
-				send_response(&RealmsProtocol::Void, &stream)?;
+				RealmsProtocol::Void
     	    }
         },
         RealmsProtocol::Quit => {
-			send_response(&RealmsProtocol::Quit, &stream)?;
-    		requests.push((client_id, request, Local::now()));
+			requests.push((client_id, request, Local::now()));
 	    	client.connected = false;
-			stream.shutdown(Shutdown::Both).expect("stream could not shut down.");
-        },
-        _ => {
-			send_response(&RealmsProtocol::Void, &stream)?;
-		}
-    }
 
-    Ok(())
+			RealmsProtocol::Quit
+        },
+        _ => { RealmsProtocol::Void }
+    }
 }
 
 fn send_response(data: &RealmsProtocol, mut stream: &TcpStream) -> Result<(), io::Error> {
