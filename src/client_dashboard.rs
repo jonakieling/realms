@@ -58,14 +58,8 @@ fn draw_header(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 fn draw_realms_list(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 	Group::default()
         .direction(Direction::Vertical)
-		.sizes(&[Size::Fixed(2), Size::Min(0)])
+		.sizes(&[Size::Min(0)])
         .render(t, area, |t, chunks| {
-        	Paragraph::default()
-		        .text(
-		            "request new realm with {mod=bold r}"
-		        ).block(Block::default())
-		        .render(t, &chunks[0]);
-    		// end Paragraph::default()
 
         	let border_style = Style::default().fg(Color::Yellow);
 
@@ -83,7 +77,7 @@ fn draw_realms_list(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
                     Style::default().fg(Color::Yellow),
                 )
                 .highlight_symbol("→")
-                .render(t, &chunks[1]);
+                .render(t, &chunks[0]);
     		// end SelectableList::default()
         });
     // end Group::default()
@@ -93,24 +87,12 @@ fn draw_realm(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 
 	Group::default()
         .direction(Direction::Vertical)
-		.sizes(&[Size::Fixed(2), Size::Min(0)])
+		.sizes(&[Size::Min(0)])
         .render(t, area, |t, chunks| {
-
-        	draw_realm_info(t, &chunks[0], &data);
-
-        	draw_realm_ui(t, &chunks[1], &data);
+        	draw_realm_ui(t, &chunks[0], &data);
 
         });
     // end Group::default()
-}
-
-fn draw_realm_info(t: &mut Terminal<RawBackend>, area: &Rect, _data: &Data) {
-    Paragraph::default()
-        .text(
-            "switch to realms list with {mod=bold l}"
-        ).block(Block::default())
-        .render(t, area);
-    // end Paragraph::default()
 }
 
 
@@ -163,10 +145,14 @@ fn draw_realm_ui(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 						draw_realm_region(t, &chunks[1], &data);
 		        	}
 
+                    let mut border_style = Style::default();
+                    if data.realm.done {
+                        border_style = Style::default().fg(Color::Green);
+                    }
                     Paragraph::default()
                         .text(
-                            "placeholder"
-                        ).block(Block::default().title("Briefing").borders(Borders::ALL).border_style(Style::default().fg(Color::Gray)))
+                            &data.realm.story
+                        ).block(Block::default().title(&data.realm.title).borders(Borders::ALL).border_style(border_style))
                         .wrap(true)
                         .render(t, &chunks[2]);
                     // end Paragraph::default() 

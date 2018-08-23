@@ -57,13 +57,18 @@ impl Periscope {
 			client_id = id;
 		}
 
+		// init realm, should get overriden by the server
+		let mut realm = Realm::new(0);
+		if let RealmsProtocol::Realm(response_realm) = send_request(&mut stream, client_id, RealmsProtocol::RequestNewRealm) {
+			realm = response_realm;
+		}
+		
 		let mut realms = SelectionStorage::new();
 		if let RealmsProtocol::RealmsList(response_realms) = send_request(&mut stream, client_id, RealmsProtocol::RequestRealmsList) {
 			realms = response_realms;
 		}
 
-		// init realm, beware that id 0 is a valid id so this might geht overriden by the server side realm with id 0
-		let realm = Realm::new(0);
+		realms.last();
 
 		Periscope {
 			stream,
@@ -72,7 +77,7 @@ impl Periscope {
 				realm,
 				realms,
 				explorer_orders: SelectionStorage::new_from(&vec![ExplorerOrders::Inventory, ExplorerOrders::Move]),
-				active: InteractiveUi::Realms
+				active: InteractiveUi::Regions
 			}
 		}
 	}
@@ -297,9 +302,13 @@ fn handle_explorer_move_events(stream: &mut TcpStream, data: &mut Data, key: eve
 		},
 		event::Key::Char('\n') => {
     		{
+				// request reset explorers index, we set it back afterwards
+				let last_explorers_index = data.realm.expedition.explorers.current_index();
+	    		
 	    		if let RealmsProtocol::Realm(response_realm) = explorer_move(stream, data.id, data.realm.id, &mut data.realm.island.regions, &mut data.realm.expedition.explorers) {
 		    		data.realm = response_realm;
 				}
+				data.realm.expedition.explorers.at(last_explorers_index);
     		}
 	    	data.active = InteractiveUi::ExplorerOrders;
 

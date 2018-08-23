@@ -6,21 +6,44 @@ use tokens::Equipment::*;
 use utility::*;
 use itertools::Itertools;
 
-pub enum Realms {
-	Dev,
+pub enum RealmVariant {
+	Tutorial,
 	// PrologueTheQueen
 }
 
-impl Realms {
-    pub fn create(self, id: usize) -> Realm {
-    	match self {
-    		Realms::Dev => { realm_dev(id) }
-    	}
+pub trait RealmStrategy {
+    fn create(&self, id: usize) -> Realm;
+    fn state(&self, realm: &mut Realm);
+}
+
+impl RealmStrategy for RealmVariant {
+    fn create(&self, id: usize) -> Realm {
+        match self {
+            RealmVariant::Tutorial => { realm_dev(id) }
+        }
     }
+
+    fn state(&self, realm: &mut Realm) {
+        match self {
+            RealmVariant::Tutorial => {
+                let mut embarked = 0;
+                for explorer in realm.expedition.explorers.iter() {
+                    if explorer.region.is_some() {
+                        embarked += 1;
+                    }
+                }
+                if embarked == realm.expedition.explorers.iter().len() {
+                    realm.story = "all explorers have embarked. you can keep playing around.".to_string();
+                    realm.done = true;
+                }
+                realm.age += 1;
+            }
+        }
+    }        
 }
 
 fn realm_dev(id: usize) -> Realm {
-	let mut rng = thread_rng();
+    let mut rng = thread_rng();
     let mut rng2 = thread_rng();
     let mut region_id = 0;
     let regions: Vec<Region> = rng.sample_iter(&Uniform::new_inclusive(1, 4)).take(19).map(|number| {
@@ -243,9 +266,14 @@ fn realm_dev(id: usize) -> Realm {
     };
 
     Realm {
-    	id,
-    	island,
-    	expedition,
-    	age: 0
+        id,
+        island,
+        expedition,
+        age: 0,
+        title: "tutorial".to_string(),
+        story: "embark all explorers.".to_string(),
+        objectives: vec![RealmObjective::EmbarkExplorers],
+        completed: vec![],
+        done: false
     }
 }

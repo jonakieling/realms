@@ -42,7 +42,12 @@ pub struct Realm {
     pub island: Island,
     pub expedition: Expedition,
     pub id: RealmId,
-    pub age: usize
+    pub age: usize,
+    pub title: String,
+    pub story: String,
+    pub objectives: Vec<RealmObjective>,
+    pub completed: Vec<RealmObjective>,
+    pub done: bool
 }
 
 impl Realm {
@@ -51,9 +56,19 @@ impl Realm {
             island: Island::new(),
             expedition: Expedition::new(),
             id,
-            age: 0
+            age: 0,
+            title: "a realm".to_string(),
+            story: "pure nihilism.".to_string(),
+            objectives: vec![],
+            completed: vec![],
+            done: false
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum RealmObjective {
+    EmbarkExplorers
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

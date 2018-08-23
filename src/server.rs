@@ -30,7 +30,8 @@ pub struct Universe {
 pub struct Client {
 	id: ClientId,
 	connected: bool,
-	time: DateTime<Local>
+	time: DateTime<Local>,
+	realm_variant: RealmVariant
 }
 
 impl Client {
@@ -38,7 +39,8 @@ impl Client {
 		Client {
 			id,
 			connected: true,
-			time: Local::now()
+			time: Local::now(),
+			realm_variant: RealmVariant::Tutorial
 		}
 	}
 }
@@ -81,7 +83,12 @@ impl Universe {
 			        },
 			        RealmsProtocol::RequestNewRealm => {
 			        	let id = self.realms.len();
-				        let realm = Realms::Dev.create(id);
+				        let mut realm = Realm::new(id);
+			        	for client in &mut self.clients {
+			    		    if client.id == client_id {
+			    		    	realm = client.realm_variant.create(id)
+			    		    }
+			    		}
 						send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 			    		self.realms.push(realm);
 			    		self.requests.push((client_id, request));
@@ -92,14 +99,19 @@ impl Universe {
 			    		}
 			        },
 			        RealmsProtocol::RequestRealm(realm_id) => {
-			        	let realm;
+			        	let mut realm;
 			        	if self.realms.len() > realm_id {
 			        	    realm = self.realms[realm_id].clone();
 							send_response(&RealmsProtocol::Realm(realm), &stream)?;
 			        	} else {
 			        		// send new realm on miss
 				        	let id = self.realms.len();
-				        	realm = Realms::Dev.create(id);
+				        	realm = Realm::new(id);
+				        	for client in &mut self.clients {
+				    		    if client.id == client_id {
+				    		    	realm = client.realm_variant.create(id)
+				    		    }
+				    		}
 							send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 				    		self.realms.push(realm);
 			        	}
@@ -111,7 +123,7 @@ impl Universe {
 			    		}
 			        },
 			        RealmsProtocol::Explorer(Move::ChangeRegion(realm_id, region_id, explorer_id)) => {
-			        	for realm in &mut self.realms {
+			        	for mut realm in &mut self.realms {
 			        	    if realm_id == realm.id {
 			        	    	for explorer in &mut realm.expedition.explorers.iter_mut() {
 			        	    		if explorer.id == explorer_id {
@@ -119,6 +131,11 @@ impl Universe {
 			        	    		}
 
 			        	    	}
+			        	    	for client in &mut self.clients {
+					    		    if client.id == client_id {
+					    		    	client.realm_variant.state(&mut realm);
+					    		    }
+					    		}
 								send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 			        	    }
 			        	}
@@ -126,7 +143,7 @@ impl Universe {
 			        },
 			        RealmsProtocol::Explorer(Move::Action(realm_id, region_id, explorer_id, action)) => {
     	    			let mut allowed = false;
-			        	for realm in &mut self.realms {
+			        	for mut realm in &mut self.realms {
 			        	    if realm_id == realm.id {
 		        	    		for region in &mut realm.island.regions.iter_mut() {
 			        	    		if region_id == region.id {
@@ -160,6 +177,11 @@ impl Universe {
 			        	    		}
 		        	    		}
 					        	if allowed {
+			        	    		for client in &mut self.clients {
+						    		    if client.id == client_id {
+						    		    	client.realm_variant.state(&mut realm);
+						    		    }
+						    		}
 									send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 					        	} else {
 									send_response(&RealmsProtocol::Void, &stream)?;
