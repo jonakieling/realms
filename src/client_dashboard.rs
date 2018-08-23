@@ -36,11 +36,11 @@ pub fn draw(terminal: &mut Terminal<RawBackend>, data: &mut Data) -> Result<(), 
 fn draw_header(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 	Group::default()
         .direction(Direction::Horizontal)
-		.sizes(&[Size::Percent(75), Size::Percent(25)])
+		.sizes(&[Size::Percent(35), Size::Percent(65)])
         .render(t, area, |t, chunks| {
         	Paragraph::default()
 		        .text(
-		            "move cursor with {mod=bold ↑→↓←}\nexit with {mod=bold q}",
+		            "cursor {mod=bold ↑→↓←}\nexit {mod=bold q}",
 		        ).block(Block::default().title("Abstract").borders(Borders::ALL))
 		        .render(t, &chunks[0]);
     		// end Paragraph::default()
@@ -49,6 +49,7 @@ fn draw_header(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 		        .text(
 		            &format!("id {{mod=bold {}}}", data.id),
 		        ).block(Block::default().title("Client").borders(Borders::ALL))
+                .wrap(true)
 		        .render(t, &chunks[1]);
     		// end Paragraph::default()
     	});

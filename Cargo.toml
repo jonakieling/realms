@@ -12,3 +12,4 @@ tui = "*"
 termion = "*"
 chrono = "*"
 itertools = "*"
+uuid = { version = "0.6", features = ["serde", "v4"] }

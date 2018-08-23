@@ -13,6 +13,8 @@ extern crate chrono;
 
 extern crate itertools;
 
+extern crate uuid;
+
 use std::env;
 use std::io;
 use std::sync::mpsc;

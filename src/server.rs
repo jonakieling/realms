@@ -16,6 +16,8 @@ use tui::layout::{Direction, Group, Size};
 use tui::widgets::{List, Block, Borders, Item, Widget};
 use tui::style::{Style, Color};
 
+use uuid::Uuid;
+
 use tokens::*;
 use utility::*;
 use realms::*;
@@ -28,7 +30,7 @@ pub struct Universe {
 }
 
 pub struct Client {
-	id: ClientId,
+	id: Uuid,
 	connected: bool,
 	time: DateTime<Local>,
 	realm_variant: RealmVariant
@@ -60,11 +62,7 @@ impl Universe {
 
 			    match request {
 			        RealmsProtocol::Register => {
-			        	let mut high = 0;
-			        	for client in &self.clients {
-			        	    high = client.id.max(high) + 1;
-			        	}
-			        	let mut id = self.clients.len().max(high);
+			        	let id = Uuid::new_v4();
 						send_response(&RealmsProtocol::Connect(id), &stream)?;
 						self.clients.push(Client::new(id));
 			    		self.requests.push((id, request));
@@ -81,6 +79,7 @@ impl Universe {
 			        	if client_found {
 							send_response(&RealmsProtocol::Connect(id), &stream)?;
 			        	} else {
+			        		let id = Uuid::new_v4();
 							send_response(&RealmsProtocol::Connect(id), &stream)?;
 							self.clients.push(Client::new(id));
 			        	}
@@ -360,24 +359,28 @@ fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, Realms
 	let t_size = t.size().unwrap();
 
 	Group::default()
-        .direction(Direction::Horizontal)
-		.sizes(&[Size::Percent(50), Size::Percent(50)])
+        .direction(Direction::Vertical)
+		.sizes(&[Size::Percent(40), Size::Percent(30), Size::Percent(30)])
         .render(t, &t_size, |t, chunks| {
             let style = Style::default();
             let highlight = Style::default().fg(Color::Yellow);
+            let done = Style::default().fg(Color::Green);
+
 
         	let requests = requests.iter().rev().map(|(client, request)| {
         		match request {
-        		    RealmsProtocol::Register | RealmsProtocol::Connect(_) | RealmsProtocol::Quit => Item::StyledData(
-                    format!("{} {}", client, request),
-	                    &highlight
-                	),
-        		    _ => Item::StyledData(
-                    format!("{} {}", client, request),
-	                    &style
-	                ),
+        		    RealmsProtocol::Register | RealmsProtocol::Connect(_) | RealmsProtocol::Quit => {
+        		    	Item::StyledData(format!("{} {}", request, client.to_string()), &highlight)
+        		    },
+        		    _ => Item::StyledData(format!("{} {}", request, client.to_string()), &style)
         		}
             });
+    		List::new(requests)
+                .block(Block::default().borders(Borders::ALL).title("Requests"))
+                .render(t, &chunks[0]);
+    		// end List::new()
+
+
         	let clients = clients.iter().rev().map(|client| {
         		match client.connected {
         		    true => Item::StyledData(
@@ -390,35 +393,33 @@ fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, Realms
 	                ),
         		}
             });
-        	let realms = realms.iter().rev().map(|realm| {
-        		Item::StyledData(
-                    format!("{}", realm.id),
-                    &style
-                )
-            });
-
-    		List::new(requests)
-                .block(Block::default().borders(Borders::ALL).title("Requests"))
-                .render(t, &chunks[0]);
+    		List::new(clients)
+                .block(Block::default().borders(Borders::ALL).title("Clients"))
+                .render(t, &chunks[1]);
     		// end List::new()
 
 
-			Group::default()
-		        .direction(Direction::Vertical)
-				.sizes(&[Size::Percent(50), Size::Percent(50)])
-		        .render(t, &chunks[1], |t, chunks| {
-
-		    		List::new(clients)
-		                .block(Block::default().borders(Borders::ALL).title("Clients"))
-		                .render(t, &chunks[0]);
-	        		// end List::new()
-
-		    		List::new(realms)
-		                .block(Block::default().borders(Borders::ALL).title("Realms"))
-		                .render(t, &chunks[1]);
-	        		// end List::new()
-		        });
-	        // end Group::default()
+        	let realms = realms.iter().rev().map(|realm| {
+        		match realm.done {
+        		    true => {
+        		    	Item::StyledData(
+		                    format!("{} {} {}", realm.id, realm.title, realm.age),
+		                    &done
+		                )
+        		    },
+        		    false => {
+        		    	Item::StyledData(
+		                    format!("{} {} {}", realm.id, realm.title, realm.age),
+		                    &style
+		                )
+        		    },
+        		}
+        		
+            });
+    		List::new(realms)
+                .block(Block::default().borders(Borders::ALL).title("Realms"))
+                .render(t, &chunks[2]);
+    		// end List::new()
         });
     // end Groupd::default()
 

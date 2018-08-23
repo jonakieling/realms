@@ -2,7 +2,9 @@
 use utility::SelectionStorage;
 use std::fmt;
 
-pub type ClientId = usize;
+use uuid::Uuid;
+
+pub type ClientId = Uuid;
 pub type RealmId = usize;
 pub type RegionId = usize;
 pub type ExplorerId = usize;
@@ -33,7 +35,10 @@ pub enum Move {
 
 impl fmt::Display for RealmsProtocol {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        match self {
+            RealmsProtocol::Connect(client) => write!(f, "Connect({})", client.to_string()),
+            _ => write!(f, "{:?}", self)
+        }
     }
 }
 

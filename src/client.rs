@@ -11,6 +11,8 @@ use tui::Terminal;
 use tui::backend::RawBackend;
 use termion::event;
 
+use uuid::Uuid;
+
 use Event;
 use tokens::*;
 use utility::SelectionStorage;
@@ -54,19 +56,19 @@ pub struct Periscope {
 impl Periscope {
 	pub fn new(mut stream: TcpStream) -> Periscope {
 
-		let mut client_id: usize = 0;
+		let mut client_id: Uuid = Uuid::new_v4();
     	if let Ok(mut file) = File::open("client.id") {
 			let mut stored_client_id = String::new();
 		    file.read_to_string(&mut stored_client_id).expect("could not read contents of file client.id");
-		    client_id = stored_client_id.parse::<usize>().expect("could not parse stored client id as usize.");
+		    client_id = Uuid::parse_str(&stored_client_id).expect("could not parse stored client id as usize.");
 
 		    // try to connect previous client
-		    if let RealmsProtocol::Connect(id) = send_request(&mut stream, 0, RealmsProtocol::Connect(client_id)) {
+		    if let RealmsProtocol::Connect(id) = send_request(&mut stream, client_id, RealmsProtocol::Connect(client_id)) {
 				client_id = id;
 			}
     	} else {
     		// register new client
-			if let RealmsProtocol::Connect(id) = send_request(&mut stream, 0, RealmsProtocol::Register) {
+			if let RealmsProtocol::Connect(id) = send_request(&mut stream, client_id, RealmsProtocol::Register) {
 				client_id = id;
 			}
     	}
