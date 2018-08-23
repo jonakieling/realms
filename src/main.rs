@@ -47,9 +47,18 @@ pub enum Event {
 fn main() {
 	let args: Vec<String> = env::args().collect();
 
+
+	// uberspace: j0na.net:64245
 	let mut mode = Mode::Client;
-	if args.len() == 2 && &args[1] == "server" {
+	let mut host = "127.0.0.1:8080";
+	if args.len() >= 2 && &args[1] == "server" {
     	mode = Mode::Server;
+	}
+	if args.len() >= 2 && &args[1] == "client" {
+    	mode = Mode::Client;
+	}
+	if args.len() >= 3 {
+    	host = &args[2];
 	}
 
     // tui terminal
@@ -86,13 +95,13 @@ fn main() {
 		        }
 			});
 
-	    	if let Ok(stream) = TcpStream::connect("127.0.0.1:8080") {
+	    	if let Ok(stream) = TcpStream::connect(host) {
 	    		let periscope = client::Periscope::new(stream);
 		 		periscope.run(&mut terminal, &rx).expect("io error");
 			}
 	    },
 	    Mode::Server => {
-			let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
+			let listener = TcpListener::bind(host).expect(&format!("could not bind tcp listener to {}", host));
     		let universe = server::Universe { listener, realms: vec![], requests: vec![], clients: vec![] };
 	    	universe.run(&mut terminal).expect("io error");
 	    }
