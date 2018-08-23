@@ -72,9 +72,9 @@ laying groundwork for the plot by shaping the state of the island and the relati
     + remove a blockade
     + claim a region
 
-what it looked like since this picture was last updated
-=======================================================
+recent screenshot
+=================
 
-![a screenshot of an early stage in development](screenshot.png "The client on the left with an overview of all regions, the current expedition explorer composition (with orders on the right) and the current region (selected or displaying the current explorers region with) with it's particularities. The server on the right shows connected clients (active ones are highlighted), created realms (just id for now) and every request.")
+![a screenshot of an early stage in development](screenshot.png "The client on the left with an overview of all regions, the current expedition with all explorers (with orders, currently move, on the right) and the current region (displaying the currently selected explorer's region) with it's particularities. The server on the right shows connected clients (active ones are highlighted), created realms (just id for now) and every request.")
 
-*The client on the left with an overview of all regions, the current expedition explorer composition (with orders on the right) and the current region (selected or displaying the current explorers region with) with it's particularities. The server on the right shows connected clients (active ones are highlighted), created realms (just id for now) and every request.*
+*The client on the left with an overview of all regions, the current expedition with all explorers (with orders, currently `move`, on the right) and the current region (displaying the currently selected explorer's region) with it's particularities. The server on the right shows connected clients (active ones are highlighted), created realms (just id for now) and every request.*
