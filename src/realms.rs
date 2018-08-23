@@ -6,6 +6,7 @@ use tokens::Equipment::*;
 use utility::*;
 use itertools::Itertools;
 
+#[derive(Clone)]
 pub enum RealmVariant {
 	Tutorial,
 	// PrologueTheQueen
