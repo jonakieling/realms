@@ -1,4 +1,5 @@
 
+use std::fs::File;
 use std::net::{TcpStream, Shutdown};
 use std::sync::mpsc::Receiver;
 use std::io::prelude::*;
@@ -52,10 +53,25 @@ pub struct Periscope {
 
 impl Periscope {
 	pub fn new(mut stream: TcpStream) -> Periscope {
-		let mut client_id = 0;
-		if let RealmsProtocol::Connect(id) = send_request(&mut stream, 0, RealmsProtocol::Register) {
-			client_id = id;
-		}
+
+		let mut client_id: usize = 0;
+    	if let Ok(mut file) = File::open("client.id") {
+			let mut stored_client_id = String::new();
+		    file.read_to_string(&mut stored_client_id).expect("could not read contents of file client.id");
+		    client_id = stored_client_id.parse::<usize>().expect("could not parse stored client id as usize.");
+
+		    // try to connect previous client
+		    if let RealmsProtocol::Connect(id) = send_request(&mut stream, 0, RealmsProtocol::Connect(client_id)) {
+				client_id = id;
+			}
+    	} else {
+    		// register new client
+			if let RealmsProtocol::Connect(id) = send_request(&mut stream, 0, RealmsProtocol::Register) {
+				client_id = id;
+			}
+    	}
+
+		File::create("client.id").expect("could not create file client.id").write_fmt(format_args!("{}", client_id)).expect("could not write to file client.id");
 
 		// init realm, should get overriden by the server
 		let mut realm = Realm::new(0);

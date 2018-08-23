@@ -2,3 +2,4 @@
 **/*.rs.bk
 realms.sublime-project
 realms.sublime-workspace
+client.id

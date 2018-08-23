@@ -258,7 +258,7 @@ fn draw_realm_expedition_list(t: &mut Terminal<RawBackend>, area: &Rect, data: &
     let explorer_index = data.realm.expedition.explorers.current_index();
     let explorers: Vec<String> = data.realm.expedition.explorers.iter().map(|explorer| {
         if let Some(explorer_region) = explorer.region {
-            format!("{:?} {}", explorer.traits.storage(), explorer_region)
+            format!("{:?} at {}", explorer.traits.storage(), explorer_region)
         } else {
             format!("{:?}", explorer.traits.storage())
         }

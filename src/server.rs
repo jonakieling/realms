@@ -62,11 +62,28 @@ impl Universe {
 			        RealmsProtocol::Register => {
 			        	let mut high = 0;
 			        	for client in &self.clients {
-			        	    high = client.id.max(high);
+			        	    high = client.id.max(high) + 1;
 			        	}
 			        	let mut id = self.clients.len().max(high);
 						send_response(&RealmsProtocol::Connect(id), &stream)?;
 						self.clients.push(Client::new(id));
+			    		self.requests.push((id, request));
+			        },
+			        RealmsProtocol::Connect(id) => {
+			        	let mut client_found = false;
+			        	for mut client in &mut self.clients {
+			        	    if client.id == id {
+			        	    	client.connected = true;
+			        	    	client_found = true;
+			        	    }
+			        	}
+
+			        	if client_found {
+							send_response(&RealmsProtocol::Connect(id), &stream)?;
+			        	} else {
+							send_response(&RealmsProtocol::Connect(id), &stream)?;
+							self.clients.push(Client::new(id));
+			        	}
 			    		self.requests.push((id, request));
 			        },
 			        RealmsProtocol::RequestRealmsList => {
