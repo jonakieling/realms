@@ -12,15 +12,12 @@ use tui::backend::RawBackend;
 
 use chrono::{Local, DateTime};
 
-use tui::layout::{Direction, Group, Size};
-use tui::widgets::{List, Block, Borders, Item, Widget, Table, Row};
-use tui::style::{Style, Color};
-
 use uuid::Uuid;
 
 use tokens::*;
 use utility::*;
 use realms::*;
+use server_dashboard::draw;
 
 pub struct Universe {
 	pub listener: TcpListener,
@@ -30,10 +27,10 @@ pub struct Universe {
 }
 
 pub struct Client {
-	id: Uuid,
-	connected: bool,
-	time: DateTime<Local>,
-	realm_variant: RealmVariant
+	pub id: Uuid,
+	pub connected: bool,
+	pub time: DateTime<Local>,
+	pub realm_variant: RealmVariant
 }
 
 impl Client {
@@ -49,7 +46,7 @@ impl Client {
 
 impl Universe {
 	pub fn run(mut self, t: &mut Terminal<RawBackend>) -> Result<(), io::Error> {
-	    draw_dashboard(t, &self.requests, &self.clients, &self.realms)?;
+	    draw(t, &self.requests, &self.clients, &self.realms)?;
 	    for stream in self.listener.incoming() {
 			let mut stream = stream.expect("could not get tcp stream.");
 			loop {
@@ -186,6 +183,8 @@ impl Universe {
 			        	    				    ExplorerAction::Hunt => {
 			        	    				    	if region.resources > 0 {
 			        	    				    		region.resources -= 1;
+			        	    				    	} else {
+			        	    				    		allowed = false;
 			        	    				    	}
 			        	    				    },
 			        	    				    ExplorerAction::Sail => {},
@@ -353,14 +352,14 @@ impl Universe {
 			    		    }
 			    		}
 			    		// draw dashboard update before client exits
-			    		draw_dashboard(t, &self.requests, &self.clients, &self.realms)?;
+			    		draw(t, &self.requests, &self.clients, &self.realms)?;
 			        	break;
 			        },
 			        _ => {
 						send_response(&RealmsProtocol::Void, &stream)?;
 					}
 			    }
-			    draw_dashboard(t, &self.requests, &self.clients, &self.realms)?;
+			    draw(t, &self.requests, &self.clients, &self.realms)?;
 			}
 	    }
 	    t.show_cursor().unwrap();
@@ -378,95 +377,3 @@ fn send_response(data: &RealmsProtocol, mut stream: &TcpStream) -> Result<(), io
 }
 
 
-fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtocol, DateTime<Local>)>, clients: &Vec<Client>, realms: &Vec<Realm>) -> Result<(), io::Error> {
-	let t_size = t.size().unwrap();
-
-	Group::default()
-        .direction(Direction::Vertical)
-		.sizes(&[Size::Percent(40), Size::Percent(30), Size::Percent(30)])
-        .render(t, &t_size, |t, chunks| {
-            let style = Style::default();
-            let highlight = Style::default().fg(Color::Yellow);
-            let done = Style::default().fg(Color::Green);
-
-
-        	let requests = requests.iter().rev().map(|(client_id, request, time)| {
-        		let mut client_index = 0;
-        		for (index, client) in &mut clients.iter().enumerate() {
-	    		    if client.id == *client_id {
-	    		    	client_index = index;
-	    		    }
-	    		}
-
-        		match request {
-        		    RealmsProtocol::Register | RealmsProtocol::Quit => {
-        		    	Row::StyledData(vec![format!("{}", client_index), format!("{}", request), format!("{}", time.format("%H:%M:%S %d.%m.%y"))].into_iter(), &highlight)
-        		    },
-        		    RealmsProtocol::Connect(_) => {
-        		    	Row::StyledData(vec![format!("{}", client_index), format!("Connect"), format!("{}", time.format("%H:%M:%S %d.%m.%y"))].into_iter(), &highlight)
-        		    },
-        		    _ => Row::StyledData(vec![format!("{}", client_index), format!("{}", request), format!("{}", time.format("%H:%M:%S %d.%m.%y"))].into_iter(), &style)
-        		}
-            });
-
-            Table::new(
-                ["index", "request", "time"].into_iter(),
-                requests
-            ).block(Block::default().title("Requests").borders(Borders::ALL))
-                .header_style(Style::default().fg(Color::Yellow))
-                .widths(&[5, 52, 17])
-                .render(t, &chunks[0]);
-
-
-        	let clients = clients.iter().enumerate().rev().map(|(index, client)| {
-        		match client.connected {
-        		    true => Row::StyledData(
-	                    vec![format!("{}", index), format!("{}", client.id), format!("{}", client.time.format("%H:%M:%S %d.%m.%y"))].into_iter(),
-	                    &done
-                	),
-        		    false => Row::StyledData(
-	                    vec![format!("{}", index), format!("{}", client.id), format!("{}", client.time.format("%H:%M:%S %d.%m.%y"))].into_iter(),
-	                    &style
-	                ),
-        		}
-            });
-
-            Table::new(
-                ["index", "uuid", "time"].into_iter(),
-                clients
-            ).block(Block::default().title("Clients").borders(Borders::ALL))
-                .header_style(Style::default().fg(Color::Yellow))
-                .widths(&[5, 52, 17])
-                .render(t, &chunks[1]);
-
-
-        	let realms = realms.iter().rev().map(|realm| {
-        		match realm.done {
-        		    true => {
-        		    	Row::StyledData(
-		                    vec![format!("{}", realm.id), format!("{}", realm.age), format!("{}", realm.title)].into_iter(),
-		                    &done
-		                )
-        		    },
-        		    false => {
-        		    	Row::StyledData(
-		                    vec![format!("{}", realm.id), format!("{}", realm.age), format!("{}", realm.title)].into_iter(),
-		                    &style
-		                )
-        		    },
-        		}
-        		
-            });
-
-            Table::new(
-                ["id", "age", "title"].into_iter(),
-                realms
-            ).block(Block::default().title("Realm").borders(Borders::ALL))
-                .header_style(Style::default().fg(Color::Yellow))
-                .widths(&[4, 5, 65])
-                .render(t, &chunks[2]);
-        });
-    // end Groupd::default()
-
-	t.draw()
-}

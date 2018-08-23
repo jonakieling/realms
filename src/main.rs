@@ -31,6 +31,7 @@ use termion::input::TermRead;
 mod client;
 mod client_dashboard;
 mod server;
+mod server_dashboard;
 mod tokens;
 mod utility;
 mod realms;
