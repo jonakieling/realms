@@ -1,4 +1,5 @@
 
+use std::collections::HashMap;
 use std::net::TcpStream;
 use std::net::TcpListener;
 use std::net::Shutdown;
@@ -23,10 +24,10 @@ pub struct Universe {
 	pub listener: TcpListener,
 	pub realms: Vec<Realm>,
 	pub requests: Vec<(ClientId, RealmsProtocol, DateTime<Local>)>,
-	pub clients: Vec<Client>
+	pub clients: HashMap<Uuid, Client>
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Client {
 	pub id: Uuid,
 	pub connected: bool,
@@ -59,27 +60,23 @@ impl Universe {
 			    let (client_id, request): (ClientId, RealmsProtocol) = deserialize(&buffer).expect("could not deserialize client request.");
 
 			    // fetch current client if any
-			    let mut current_client: Option<Client> = None;
-			    {
-			    	for client in &self.clients {
-		        	    if client.id == client_id {
-		        	    	current_client = Some(client.clone());
-		        	    }
-		        	}
-			    }
+			    let mut current_client: Option<Client> = self.clients.get_mut(&client_id).cloned();
 
 			    // seperate client and no-client request handling
-	        	if let Some(ref mut client) = current_client {
-	        	    handle_request(&mut self.requests, &mut self.realms, &mut stream, client, request)?;
+	        	if let Some(mut client) = current_client {
+	        	    handle_request(&mut self.requests, &mut self.realms, &mut stream, &mut client, request)?;
+	        		let disconnect = !client.connected;
+	        		self.clients.insert(client.id, client);
 
-	        	    if !client.connected {
-	        	    	// draw dashboard before client exits and then break the stream loop
+	        	    if disconnect {
+	        	    	// draw update before client exits
 			    		draw(t, &self.requests, &self.clients, &self.realms)?;
 	        	    	break;
 	        	    }
 	        	} else {
 	        	    handle_connecting_requests(&mut self.clients, &mut self.requests, &mut stream, request)?;
 	        	}
+
 
 	        	// draw dashboard after requests and responses have been handled
 			    draw(t, &self.requests, &self.clients, &self.realms)?;
@@ -94,13 +91,13 @@ impl Universe {
 	}
 }
 
-fn handle_connecting_requests(clients: &mut Vec<Client>, requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)>, stream: &mut TcpStream, request: RealmsProtocol) -> Result<(), io::Error> {
+fn handle_connecting_requests(clients: &mut HashMap<Uuid, Client>, requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)>, stream: &mut TcpStream, request: RealmsProtocol) -> Result<(), io::Error> {
 	match request {
 		// a connect request when the server could not find the id matching client acts as a register request.
         RealmsProtocol::Register | RealmsProtocol::Connect(_) => {
         	let id = Uuid::new_v4();
 			send_response(&RealmsProtocol::Connect(id), &stream)?;
-			clients.push(Client::new(id));
+			clients.insert(id, Client::new(id));
     		requests.push((id, request, Local::now()));
         },
         _ => {
@@ -116,6 +113,11 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
 	client.time = Local::now();
 
 	match request {
+		RealmsProtocol::Connect(id) => {
+			send_response(&RealmsProtocol::Connect(id), &stream)?;
+			client.connected = true;
+    		requests.push((id, request, Local::now()));
+        },
         RealmsProtocol::RequestRealmsList => {
     		let realms: Vec<RealmId> = realms.iter().map(|realm| {
     			realm.id
@@ -321,9 +323,9 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         },
         RealmsProtocol::Quit => {
 			send_response(&RealmsProtocol::Quit, &stream)?;
-			stream.shutdown(Shutdown::Both).expect("stream could not shut down.");
     		requests.push((client_id, request, Local::now()));
 	    	client.connected = false;
+			stream.shutdown(Shutdown::Both).expect("stream could not shut down.");
         },
         _ => {
 			send_response(&RealmsProtocol::Void, &stream)?;

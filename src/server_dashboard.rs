@@ -1,4 +1,6 @@
 
+use uuid::Uuid;
+use std::collections::HashMap;
 use server::Client;
 use std::io;
 
@@ -14,7 +16,7 @@ use tui::style::{Style, Color};
 
 use tokens::*;
 
-pub fn draw(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtocol, DateTime<Local>)>, clients: &Vec<Client>, realms: &Vec<Realm>) -> Result<(), io::Error> {
+pub fn draw(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtocol, DateTime<Local>)>, clients: &HashMap<Uuid, Client>, realms: &Vec<Realm>) -> Result<(), io::Error> {
 	let t_size = t.size().unwrap();
 
 	Group::default()
@@ -29,7 +31,7 @@ pub fn draw(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtoc
 
         	let requests = requests.iter().rev().map(|(client_id, request, time)| {
         		let mut client_index = 0;
-        		for (index, client) in &mut clients.iter().enumerate() {
+        		for (index, (_, client)) in &mut clients.iter().enumerate() {
 	    		    if client.id == *client_id {
 	    		    	client_index = index;
 	    		    }
@@ -50,15 +52,15 @@ pub fn draw(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtoc
             });
 
             Table::new(
-                ["index", "request", "time"].into_iter(),
+                ["idx", "request", "time"].into_iter(),
                 requests
             ).block(Block::default().title("Requests").borders(Borders::ALL))
                 .header_style(Style::default().fg(Color::Yellow))
-                .widths(&[5, 52, 17])
+                .widths(&[4, 48, 17])
                 .render(t, &chunks[0]);
 
 
-        	let clients = clients.iter().enumerate().rev().map(|(index, client)| {
+        	let clients = clients.iter().enumerate().map(|(index, (_, client))| {
         		match client.connected {
         		    true => Row::StyledData(
 	                    vec![format!("{}", index), format!("{}", client.id), format!("{}", client.time.format("%H:%M:%S %d.%m.%y"))].into_iter(),
@@ -72,11 +74,11 @@ pub fn draw(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtoc
             });
 
             Table::new(
-                ["index", "uuid", "time"].into_iter(),
+                ["idx", "uuid", "time"].into_iter(),
                 clients
             ).block(Block::default().title("Clients").borders(Borders::ALL))
                 .header_style(Style::default().fg(Color::Yellow))
-                .widths(&[5, 52, 17])
+                .widths(&[4, 48, 17])
                 .render(t, &chunks[1]);
 
 
@@ -99,11 +101,11 @@ pub fn draw(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtoc
             });
 
             Table::new(
-                ["id", "age", "title"].into_iter(),
+                ["idx", "age", "title"].into_iter(),
                 realms
             ).block(Block::default().title("Realm").borders(Borders::ALL))
                 .header_style(Style::default().fg(Color::Yellow))
-                .widths(&[4, 5, 65])
+                .widths(&[4, 5, 60])
                 .render(t, &chunks[2]);
         });
     // end Groupd::default()

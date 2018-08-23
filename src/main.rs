@@ -17,6 +17,7 @@ extern crate uuid;
 
 use std::env;
 use std::io;
+use std::collections::HashMap;
 use std::sync::mpsc;
 use std::thread;
 use std::time;
@@ -105,7 +106,7 @@ fn main() {
 	    },
 	    Mode::Server => {
 			let listener = TcpListener::bind(host).expect(&format!("could not bind tcp listener to {}", host));
-    		let universe = server::Universe { listener, realms: vec![], requests: vec![], clients: vec![] };
+    		let universe = server::Universe { listener, realms: vec![], requests: vec![], clients: HashMap::new() };
 	    	universe.run(&mut terminal).expect("io error");
 	    }
 	}
