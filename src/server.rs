@@ -13,7 +13,7 @@ use tui::backend::RawBackend;
 use chrono::{Local, DateTime};
 
 use tui::layout::{Direction, Group, Size};
-use tui::widgets::{List, Block, Borders, Item, Widget};
+use tui::widgets::{List, Block, Borders, Item, Widget, Table, Row};
 use tui::style::{Style, Color};
 
 use uuid::Uuid;
@@ -25,7 +25,7 @@ use realms::*;
 pub struct Universe {
 	pub listener: TcpListener,
 	pub realms: Vec<Realm>,
-	pub requests: Vec<(ClientId, RealmsProtocol)>,
+	pub requests: Vec<(ClientId, RealmsProtocol, DateTime<Local>)>,
 	pub clients: Vec<Client>
 }
 
@@ -65,7 +65,7 @@ impl Universe {
 			        	let id = Uuid::new_v4();
 						send_response(&RealmsProtocol::Connect(id), &stream)?;
 						self.clients.push(Client::new(id));
-			    		self.requests.push((id, request));
+			    		self.requests.push((id, request, Local::now()));
 			        },
 			        RealmsProtocol::Connect(id) => {
 			        	let mut client_found = false;
@@ -73,6 +73,7 @@ impl Universe {
 			        	    if client.id == id {
 			        	    	client.connected = true;
 			        	    	client_found = true;
+			        	    	client.time = Local::now();
 			        	    }
 			        	}
 
@@ -83,14 +84,14 @@ impl Universe {
 							send_response(&RealmsProtocol::Connect(id), &stream)?;
 							self.clients.push(Client::new(id));
 			        	}
-			    		self.requests.push((id, request));
+			    		self.requests.push((id, request, Local::now()));
 			        },
 			        RealmsProtocol::RequestRealmsList => {
 		        		let realms: Vec<RealmId> = self.realms.iter().map(|realm| {
 		        			realm.id
 		        		}).collect();
 						send_response(&RealmsProtocol::RealmsList(SelectionStorage::new_from(&realms)), &stream)?;
-			    		self.requests.push((client_id, request));
+			    		self.requests.push((client_id, request, Local::now()));
 			    		for client in &mut self.clients {
 			    		    if client.id == client_id {
 			    		    	client.time = Local::now();
@@ -107,7 +108,7 @@ impl Universe {
 			    		}
 						send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 			    		self.realms.push(realm);
-			    		self.requests.push((client_id, request));
+			    		self.requests.push((client_id, request, Local::now()));
 			    		for client in &mut self.clients {
 			    		    if client.id == client_id {
 			    		    	client.time = Local::now();
@@ -131,7 +132,7 @@ impl Universe {
 							send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 				    		self.realms.push(realm);
 			        	}
-			    		self.requests.push((client_id, request));
+			    		self.requests.push((client_id, request, Local::now()));
 			    		for client in &mut self.clients {
 			    		    if client.id == client_id {
 			    		    	client.time = Local::now();
@@ -150,12 +151,13 @@ impl Universe {
 			        	    	for client in &mut self.clients {
 					    		    if client.id == client_id {
 					    		    	client.realm_variant.state(&mut realm);
+					    		    	client.time = Local::now();
 					    		    }
 					    		}
 								send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
 			        	    }
 			        	}
-			    		self.requests.push((client_id, request));
+			    		self.requests.push((client_id, request, Local::now()));
 			        },
 			        RealmsProtocol::Explorer(Move::Action(realm_id, region_id, explorer_id, action)) => {
     	    			let mut allowed = false;
@@ -196,6 +198,7 @@ impl Universe {
 			        	    		for client in &mut self.clients {
 						    		    if client.id == client_id {
 						    		    	client.realm_variant.state(&mut realm);
+						    		    	client.time = Local::now();
 						    		    }
 						    		}
 									send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
@@ -205,7 +208,7 @@ impl Universe {
 			        	    }
 			        	}
 			        	if allowed {
-			    			self.requests.push((client_id, RealmsProtocol::Explorer(Move::Action(realm_id, region_id, explorer_id, action))));
+			    			self.requests.push((client_id, RealmsProtocol::Explorer(Move::Action(realm_id, region_id, explorer_id, action)), Local::now()));
 			        	}
 			        },
 			        RealmsProtocol::DropEquipment(realm_id, region_id, explorer_id, item) => {
@@ -236,8 +239,13 @@ impl Universe {
 					        	    	}
 					        	    }
 					        	}
+		        	    		for client in &mut self.clients {
+					    		    if client.id == client_id {
+					    		    	client.time = Local::now();
+					    		    }
+					    		}
 								send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
-		    					self.requests.push((client_id, RealmsProtocol::DropEquipment(realm_id, region_id, explorer_id, item.clone())));
+		    					self.requests.push((client_id, RealmsProtocol::DropEquipment(realm_id, region_id, explorer_id, item.clone()), Local::now()));
 					        }
 					    }
 			        },
@@ -269,8 +277,13 @@ impl Universe {
 					        	    	}
 					        	    }
 					        	}
+		        	    		for client in &mut self.clients {
+					    		    if client.id == client_id {
+					    		    	client.time = Local::now();
+					    		    }
+					    		}
 								send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
-		    					self.requests.push((client_id, RealmsProtocol::PickEquipment(realm_id, region_id, explorer_id, item.clone())));
+		    					self.requests.push((client_id, RealmsProtocol::PickEquipment(realm_id, region_id, explorer_id, item.clone()), Local::now()));
 					        }
 					    }
 			        },
@@ -293,8 +306,13 @@ impl Universe {
 	        	    					}
 			        	    		}
 			        	    	}
+		        	    		for client in &mut self.clients {
+					    		    if client.id == client_id {
+					    		    	client.time = Local::now();
+					    		    }
+					    		}
 								send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
-		    					self.requests.push((client_id, RealmsProtocol::ForgetParticularity(realm_id, region_id, explorer_id, particularity.clone())));
+		    					self.requests.push((client_id, RealmsProtocol::ForgetParticularity(realm_id, region_id, explorer_id, particularity.clone()), Local::now()));
 					        }
 					    }
 			        },
@@ -314,15 +332,20 @@ impl Universe {
 					        	    	}
 					        	    }
 					        	}
+		        	    		for client in &mut self.clients {
+					    		    if client.id == client_id {
+					    		    	client.time = Local::now();
+					    		    }
+					    		}
 								send_response(&RealmsProtocol::Realm(realm.clone()), &stream)?;
-		    					self.requests.push((client_id, RealmsProtocol::InvestigateParticularity(realm_id, region_id, explorer_id, item.clone())));
+		    					self.requests.push((client_id, RealmsProtocol::InvestigateParticularity(realm_id, region_id, explorer_id, item.clone()), Local::now()));
 					        }
 					    }
 			        },
 			        RealmsProtocol::Quit => {
 						send_response(&RealmsProtocol::Quit, &stream)?;
 						stream.shutdown(Shutdown::Both).expect("stream could not shut down.");
-			    		self.requests.push((client_id, request));
+			    		self.requests.push((client_id, request, Local::now()));
 			    		for client in &mut self.clients {
 			    		    if client.id == client_id {
 			    		    	client.connected = false;
@@ -355,7 +378,7 @@ fn send_response(data: &RealmsProtocol, mut stream: &TcpStream) -> Result<(), io
 }
 
 
-fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtocol)>, clients: &Vec<Client>, realms: &Vec<Realm>) -> Result<(), io::Error> {
+fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtocol, DateTime<Local>)>, clients: &Vec<Client>, realms: &Vec<Realm>) -> Result<(), io::Error> {
 	let t_size = t.size().unwrap();
 
 	Group::default()
@@ -367,59 +390,81 @@ fn draw_dashboard(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, Realms
             let done = Style::default().fg(Color::Green);
 
 
-        	let requests = requests.iter().rev().map(|(client, request)| {
+        	let requests = requests.iter().rev().map(|(client_id, request, time)| {
+        		let mut client_index = 0;
+        		for (index, client) in &mut clients.iter().enumerate() {
+	    		    if client.id == *client_id {
+	    		    	client_index = index;
+	    		    }
+	    		}
+
         		match request {
-        		    RealmsProtocol::Register | RealmsProtocol::Connect(_) | RealmsProtocol::Quit => {
-        		    	Item::StyledData(format!("{} {}", request, client.to_string()), &highlight)
+        		    RealmsProtocol::Register | RealmsProtocol::Quit => {
+        		    	Row::StyledData(vec![format!("{}", client_index), format!("{}", request), format!("{}", time.format("%H:%M:%S %d.%m.%y"))].into_iter(), &highlight)
         		    },
-        		    _ => Item::StyledData(format!("{} {}", request, client.to_string()), &style)
+        		    RealmsProtocol::Connect(_) => {
+        		    	Row::StyledData(vec![format!("{}", client_index), format!("Connect"), format!("{}", time.format("%H:%M:%S %d.%m.%y"))].into_iter(), &highlight)
+        		    },
+        		    _ => Row::StyledData(vec![format!("{}", client_index), format!("{}", request), format!("{}", time.format("%H:%M:%S %d.%m.%y"))].into_iter(), &style)
         		}
             });
-    		List::new(requests)
-                .block(Block::default().borders(Borders::ALL).title("Requests"))
+
+            Table::new(
+                ["index", "request", "time"].into_iter(),
+                requests
+            ).block(Block::default().title("Requests").borders(Borders::ALL))
+                .header_style(Style::default().fg(Color::Yellow))
+                .widths(&[5, 52, 17])
                 .render(t, &chunks[0]);
-    		// end List::new()
 
 
-        	let clients = clients.iter().rev().map(|client| {
+        	let clients = clients.iter().enumerate().rev().map(|(index, client)| {
         		match client.connected {
-        		    true => Item::StyledData(
-	                    format!("{} {}", client.id, client.time.format("%H:%M:%S %d.%m.%y")),
-	                    &highlight
+        		    true => Row::StyledData(
+	                    vec![format!("{}", index), format!("{}", client.id), format!("{}", client.time.format("%H:%M:%S %d.%m.%y"))].into_iter(),
+	                    &done
                 	),
-        		    false => Item::StyledData(
-	                    format!("{} {}", client.id, client.time.format("%H:%M:%S %d.%m.%y")),
+        		    false => Row::StyledData(
+	                    vec![format!("{}", index), format!("{}", client.id), format!("{}", client.time.format("%H:%M:%S %d.%m.%y"))].into_iter(),
 	                    &style
 	                ),
         		}
             });
-    		List::new(clients)
-                .block(Block::default().borders(Borders::ALL).title("Clients"))
+
+            Table::new(
+                ["index", "uuid", "time"].into_iter(),
+                clients
+            ).block(Block::default().title("Clients").borders(Borders::ALL))
+                .header_style(Style::default().fg(Color::Yellow))
+                .widths(&[5, 52, 17])
                 .render(t, &chunks[1]);
-    		// end List::new()
 
 
         	let realms = realms.iter().rev().map(|realm| {
         		match realm.done {
         		    true => {
-        		    	Item::StyledData(
-		                    format!("{} {} {}", realm.id, realm.title, realm.age),
+        		    	Row::StyledData(
+		                    vec![format!("{}", realm.id), format!("{}", realm.age), format!("{}", realm.title)].into_iter(),
 		                    &done
 		                )
         		    },
         		    false => {
-        		    	Item::StyledData(
-		                    format!("{} {} {}", realm.id, realm.title, realm.age),
+        		    	Row::StyledData(
+		                    vec![format!("{}", realm.id), format!("{}", realm.age), format!("{}", realm.title)].into_iter(),
 		                    &style
 		                )
         		    },
         		}
         		
             });
-    		List::new(realms)
-                .block(Block::default().borders(Borders::ALL).title("Realms"))
+
+            Table::new(
+                ["id", "age", "title"].into_iter(),
+                realms
+            ).block(Block::default().title("Realm").borders(Borders::ALL))
+                .header_style(Style::default().fg(Color::Yellow))
+                .widths(&[4, 5, 65])
                 .render(t, &chunks[2]);
-    		// end List::new()
         });
     // end Groupd::default()
 
