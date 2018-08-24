@@ -159,21 +159,37 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         	}
         },
         RealmsProtocol::Explorer(Move::ChangeRegion(realm_id, region_id, explorer_id)) => {
-        	if let Some(explorer) = realms.get_mut(realm_id).explorer(explorer_id) {
-        	    explorer.region = Some(region_id);
+        	let mut valid_move = false;
+        	if let Some(realm) = realms.get(realm_id) {
+        	    valid_move = client.realm_variant.valid_move(realm, explorer_id, region_id);
         	}
-        	if let Some(mut realm) = realms.get_mut(realm_id) {
-    	    	client.realm_variant.state(realm);
-    			requests.push((client_id, request, Local::now()));
-				RealmsProtocol::Realm(realm.clone())
+
+        	if valid_move {
+	        	if let Some(explorer) = realms.get_mut(realm_id).explorer(explorer_id) {
+	    	    	explorer.region = Some(region_id);
+	        	}
+
+	        	if let Some(mut realm) = realms.get_mut(realm_id) {
+	    	    	client.realm_variant.state(realm);
+	    			requests.push((client_id, request, Local::now()));
+					RealmsProtocol::Realm(realm.clone())
+	        	} else {
+					RealmsProtocol::Void
+	    	    }
         	} else {
 				RealmsProtocol::Void
-    	    }
+        	}
         },
         RealmsProtocol::Explorer(Move::Action(realm_id, region_id, explorer_id, action)) => {
-			let mut allowed = realms.get_mut(realm_id).region_explorer(region_id, explorer_id).is_some();
+
+        	let mut valid_action = false;
+        	if let Some(realm) = realms.get(realm_id) {
+        	    valid_action = client.realm_variant.valid_action(realm, explorer_id, region_id, &action);
+        	}
+
+			valid_action &= realms.get_mut(realm_id).region_explorer(region_id, explorer_id).is_some();
 			if let Some(mut region) = realms.get_mut(realm_id).region(region_id) {
-			    if allowed {
+			    if valid_action {
     				match action {
     				    ExplorerAction::Build => {
     				    	region.buildings.insert("\u{2302}".to_string());
@@ -185,7 +201,7 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
     				    	if region.resources > 0 {
     				    		region.resources -= 1;
     				    	} else {
-    				    		allowed = false;
+    				    		valid_action = false;
     				    	}
     				    },
     				    ExplorerAction::Sail => {},
@@ -194,7 +210,7 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
     	    	}
 			}
 			if let Some(mut realm) = realms.get_mut(realm_id) {
-	        	if allowed {
+	        	if valid_action {
     		    	client.realm_variant.state(realm);
     		    	requests.push((client_id, RealmsProtocol::Explorer(Move::Action(realm_id, region_id, explorer_id, action)), Local::now()));
 					RealmsProtocol::Realm(realm.clone())
@@ -208,25 +224,16 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         },
         RealmsProtocol::DropEquipment(realm_id, region_id, explorer_id, item) => {
         	if let Some(region) = realms.get_mut(realm_id).explorer_region(explorer_id) {
-        	    region.particularities.insert(Particularity::Item(item.clone()));
+        	    region.particularities.insert(Particularity::Item(item));
         	}
-        	if let Some(explorer) = realms.get_mut(realm_id).region_explorer(region_id, explorer_id) {
-        	    let mut item_index_to_remove: Option<usize> = None;
-				for (index, inventory_item) in explorer.inventory.iter_mut().enumerate() {
-				    if let ExplorerItem::Equipment(equipment) = inventory_item {
-				    	if *equipment == item {
-				        	item_index_to_remove = Some(index);
-				    	}
-				    }
-				}
-				if let Some(index) = item_index_to_remove {
-					explorer.inventory.at(index);
-					explorer.inventory.extract_current();
-				}
+        	if let Some(explorer) = realms.get_mut(realm_id).explorer(explorer_id) {
+        	    explorer.inventory.storage_mut().iter().position(move |ref n| **n == ExplorerItem::Equipment(item)).map(|equipment| {
+    				explorer.inventory.storage_mut().remove(equipment);
+        		});
         	}
 
 			if let Some(mut realm) = realms.get_mut(realm_id) {
-				requests.push((client_id, RealmsProtocol::DropEquipment(realm_id, region_id, explorer_id, item.clone()), Local::now()));
+				requests.push((client_id, RealmsProtocol::DropEquipment(realm_id, region_id, explorer_id, item), Local::now()));
 
 				RealmsProtocol::Realm(realm.clone())
 		    } else {
@@ -235,25 +242,16 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         },
         RealmsProtocol::PickEquipment(realm_id, region_id, explorer_id, item) => {
         	if let Some(region) = realms.get_mut(realm_id).explorer_region(explorer_id) {
-        	    let mut item_index_to_remove: Option<usize> = None;
-				for (index, particularity_item) in region.particularities.iter_mut().enumerate() {
-				    if let Particularity::Item(equipment) = particularity_item {
-				    	if *equipment == item {
-				        	item_index_to_remove = Some(index);
-				    	}
-				    }
-				}
-				if let Some(index) = item_index_to_remove {
-					region.particularities.at(index);
-					region.particularities.extract_current();
-				}
+        		region.particularities.storage_mut().iter().position(move |ref n| **n == Particularity::Item(item)).map(|equipment| {
+    				region.particularities.storage_mut().remove(equipment);
+        		});
         	}
         	if let Some(explorer) = realms.get_mut(realm_id).region_explorer(region_id, explorer_id) {
-        	    explorer.inventory.insert(ExplorerItem::Equipment(item.clone()));
+        	    explorer.inventory.insert(ExplorerItem::Equipment(item));
         	}
 
 			if let Some(mut realm) = realms.get_mut(realm_id) {
-				requests.push((client_id, RealmsProtocol::PickEquipment(realm_id, region_id, explorer_id, item.clone()), Local::now()));
+				requests.push((client_id, RealmsProtocol::PickEquipment(realm_id, region_id, explorer_id, item), Local::now()));
 
 				RealmsProtocol::Realm(realm.clone())
 		    } else {
@@ -262,22 +260,13 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         },
         RealmsProtocol::ForgetParticularity(realm_id, region_id, explorer_id, particularity) => {
 		    if let Some(explorer) = realms.get_mut(realm_id).explorer(explorer_id) {
-        	    let mut item_index_to_remove: Option<usize> = None;
-				for (index, inventory_item) in explorer.inventory.iter_mut().enumerate() {
-				    if let ExplorerItem::Particularity(investigated_region_id, investigated_item) = inventory_item {
-				    	if particularity == *investigated_item && region_id == *investigated_region_id {
-				        	item_index_to_remove = Some(index);
-				    	}
-				    }
-				}
-				if let Some(index) = item_index_to_remove {
-					explorer.inventory.at(index);
-					explorer.inventory.extract_current();
-				}
+        	    explorer.inventory.storage_mut().iter().position(move |ref n| **n == ExplorerItem::Particularity(region_id, particularity)).map(|equipment| {
+    				explorer.inventory.storage_mut().remove(equipment);
+        		});
         	}
         	
 		    if let Some(mut realm) = realms.get_mut(realm_id) {
-				requests.push((client_id, RealmsProtocol::ForgetParticularity(realm_id, region_id, explorer_id, particularity.clone()), Local::now()));
+				requests.push((client_id, RealmsProtocol::ForgetParticularity(realm_id, region_id, explorer_id, particularity), Local::now()));
 
 				RealmsProtocol::Realm(realm.clone())
 			} else {
@@ -286,11 +275,11 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         },
         RealmsProtocol::InvestigateParticularity(realm_id, region_id, explorer_id, item) => {
         	if let Some(explorer) = realms.get_mut(realm_id).region_explorer(region_id, explorer_id) {
-        	    explorer.inventory.insert(ExplorerItem::Particularity(region_id, item.clone()));
+        	    explorer.inventory.insert(ExplorerItem::Particularity(region_id, item));
         	}
 
 		    if let Some(mut realm) = realms.get_mut(realm_id) {
-				requests.push((client_id, RealmsProtocol::InvestigateParticularity(realm_id, region_id, explorer_id, item.clone()), Local::now()));
+				requests.push((client_id, RealmsProtocol::InvestigateParticularity(realm_id, region_id, explorer_id, item), Local::now()));
 
 				RealmsProtocol::Realm(realm.clone())
 			} else {

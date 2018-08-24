@@ -15,6 +15,8 @@ pub enum RealmVariant {
 pub trait RealmStrategy {
     fn create(&self, id: usize) -> Realm;
     fn state(&self, realm: &mut Realm);
+    fn valid_move(&self, realm: &Realm, explorer: ExplorerId, region: RegionId) -> bool;
+    fn valid_action(&self, realm: &Realm, explorer: ExplorerId, region: RegionId, action: &ExplorerAction) -> bool;
 }
 
 impl RealmStrategy for RealmVariant {
@@ -40,7 +42,25 @@ impl RealmStrategy for RealmVariant {
                 realm.age += 1;
             }
         }
-    }        
+    }  
+
+    fn valid_move(&self, _realm: &Realm, _explorer: ExplorerId, _region: RegionId) -> bool {
+        match self {
+            RealmVariant::Tutorial => {
+                // no movement restrictions for tutorial
+                true
+            }
+        }
+    }
+
+    fn valid_action(&self, _realm: &Realm, _explorer: ExplorerId, _region: RegionId, _action: &ExplorerAction) -> bool {
+        match self {
+            RealmVariant::Tutorial => {
+                // no restrictions on actions for tutorial
+                true
+            }
+        }
+    }      
 }
 
 fn realm_dev(id: usize) -> Realm {

@@ -92,8 +92,12 @@ impl<'a> LazyRealmAccess<'a> for Option<&'a mut Realm> {
         match self {
             Some(realm) => {
                 if let Some(explorer) = realm.expedition.explorers.storage_mut().get_mut(explorer) {
-                    if explorer.region == Some(region) {
-                        Some(explorer)
+                    if let Some(explorer_region) = explorer.region {
+                        if region == explorer_region {
+                            Some(explorer)
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
@@ -166,7 +170,7 @@ impl fmt::Display for Region {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub enum Terrain {
     Coast,
     Planes,
@@ -174,7 +178,7 @@ pub enum Terrain {
     Mountain
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub enum Particularity {
 	Town,
 	River,
@@ -192,7 +196,23 @@ pub enum Particularity {
     Lake,
     Pond,
     Clearing,
-    Ship
+    Ship,
+    Queen,
+    Farmers,
+    Lighthouse,
+    Library,
+    Castle,
+    Fortress,
+    Haven,
+    Character
+    // todo add more for plot and story
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
+pub struct Character {
+    name: String,
+    text: String,
+    dialog: Vec<String>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -267,7 +287,7 @@ impl fmt::Display for ExplorerTrait {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub enum Equipment {
     Pots,
     Tinder,
