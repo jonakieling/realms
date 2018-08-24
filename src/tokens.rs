@@ -136,9 +136,17 @@ impl<'a> LazyRealmAccess<'a> for Option<&'a mut Realm> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
 pub enum RealmObjective {
     EmbarkExplorers
+}
+
+impl fmt::Display for RealmObjective {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            RealmObjective::EmbarkExplorers => write!(f, "embark all explorers.")
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

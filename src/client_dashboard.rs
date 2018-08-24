@@ -146,17 +146,34 @@ fn draw_realm_ui(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 						draw_realm_region(t, &chunks[1], &data);
 		        	}
 
+                    let style = Style::default();
+                    let done = Style::default().fg(Color::Green);
                     let mut border_style = Style::default();
                     if data.realm.done {
                         border_style = Style::default().fg(Color::Green);
                     }
-                    Paragraph::default()
-                        .text(
-                            &data.realm.story
-                        ).block(Block::default().title(&data.realm.title).borders(Borders::ALL).border_style(border_style))
-                        .wrap(true)
+
+                    let objectives = data.realm.objectives.iter().map(|objective| {
+                        if data.realm.completed.contains(objective) {
+                            Item::StyledData(
+                                format!("{}", objective),
+                                &done
+                            )
+                        } else {
+                            Item::StyledData(
+                                format!("{}", objective),
+                                &style
+                            )
+                        }
+                    });
+
+                    List::new(objectives)
+                        .block(Block::default()
+                            .title(&data.realm.title)
+                            .borders(Borders::ALL)
+                            .border_style(border_style))
                         .render(t, &chunks[2]);
-                    // end Paragraph::default() 
+                    // end List::new()
 	        	});
 	        // end Group::default()
 		});

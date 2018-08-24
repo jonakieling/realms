@@ -14,7 +14,8 @@ pub enum RealmVariant {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RealmTemplate {
-    regions: Vec<Region>
+    regions: Vec<Region>,
+    explorers: Vec<Explorer>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -27,7 +28,8 @@ impl RealmTemplate {
     pub fn new(variant: RealmTemplateVariant) -> RealmTemplate {
         match variant {
             RealmTemplateVariant::Tutorial => RealmTemplate {
-                regions: tutorial_regions()
+                regions: tutorial_regions(),
+                explorers: tutorial_explorers()
             }
         }
         
@@ -58,6 +60,7 @@ impl RealmStrategy for RealmVariant {
                     }
                 }
                 if embarked == realm.expedition.explorers.iter().len() {
+                    realm.completed.push(RealmObjective::EmbarkExplorers);
                     realm.story = "all explorers have embarked. you can keep playing around.".to_string();
                     realm.done = true;
                 }
@@ -86,113 +89,21 @@ impl RealmStrategy for RealmVariant {
 }
 
 fn realm_tutorial(id: usize, template: &RealmTemplate) -> Realm {
-    let mut rng = thread_rng();
 
-    // todo: here the initial regions of the realm should be assembled
-    let regions = template.regions.clone();
-
+    let mut regions = vec![];
+    for region in template.regions.iter().cloned().take(2) {
+        regions.push(region);
+    }
     let island = Island {
         regions: SelectionStorage::new_from(&regions)
     };
 
-    // Pots
-    // Tinder
-    // Firewood(usize)
-    // Coal(usize)
-    // Gold(usize)
-    // Coins(usize)
-    // Tools
-    // Flint
-    // Wax
-    // SealStamp
-    // Blankets
-    // Herbs(usize)
-    // Food(usize)
-    // Pipe
-    // Telescope
-    // Compass
-    // Parchment(usize)
-    // Map
-    // Knife
-    // Spear
-    // Bow
-    // Arrows(usize)
-    // Canoe
-    // Raft
-    let mut explorers = SelectionStorage::new();
-    let how_many_explorers = rng.sample(&Uniform::new_inclusive(3, 5));
-
-    explorers.insert(Explorer {
-        id: 0,
-        traits: SelectionStorage::new_from(&vec![ExplorerTrait::Ranger]),
-        region: None,
-        inventory: SelectionStorage::new_from(&vec![
-            ExplorerItem::Equipment(Bow),
-            ExplorerItem::Equipment(Arrows(75)),
-            ExplorerItem::Equipment(Knife),
-            ExplorerItem::Equipment(Coins(110)),
-            ExplorerItem::Equipment(Telescope),
-            ExplorerItem::Equipment(Herbs(20))])
-    });
-    explorers.insert(Explorer {
-        id: 1,
-        traits: SelectionStorage::new_from(&vec![ExplorerTrait::Builder]),
-        region: None,
-        inventory: SelectionStorage::new_from(&vec![
-            ExplorerItem::Equipment(Tools),
-            ExplorerItem::Equipment(Food(10)),
-            ExplorerItem::Equipment(Pipe),
-            ExplorerItem::Equipment(Blankets),
-            ExplorerItem::Equipment(Knife)])
-    });
-    explorers.insert(Explorer {
-        id: 2,
-        traits: SelectionStorage::new_from(&vec![]),
-        region: None,
-        inventory: SelectionStorage::new_from(&vec![
-            ExplorerItem::Equipment(Pots),
-            ExplorerItem::Equipment(Tinder),
-            ExplorerItem::Equipment(Firewood(4)),
-            ExplorerItem::Equipment(Flint),
-            ExplorerItem::Equipment(Rope)])
-    });
-
-    if how_many_explorers > 3 {
-        explorers.insert(Explorer {
-            id: 3,
-            traits: SelectionStorage::new_from(&vec![ExplorerTrait::Cartographer]),
-            region: None,
-            inventory: SelectionStorage::new_from(&vec![
-                ExplorerItem::Equipment(Parchment(10)),
-                ExplorerItem::Equipment(Map),
-                ExplorerItem::Equipment(Rope),
-                ExplorerItem::Equipment(Wax),
-                ExplorerItem::Equipment(SealStamp)])
-        });
+    let mut explorers = vec![];
+    for explorer in template.explorers.iter().cloned().take(2) {
+        explorers.push(explorer);
     }
-
-    if how_many_explorers > 4 {
-        let mut explorer = Explorer {
-            id: 4,
-            traits: SelectionStorage::new_from(&vec![ExplorerTrait::Sailor]),
-            region: None,
-            inventory: SelectionStorage::new_from(&vec![
-                ExplorerItem::Equipment(Coins(32)),
-                ExplorerItem::Equipment(Gold(4)),
-                ExplorerItem::Equipment(Rope),
-                ExplorerItem::Equipment(Knife),
-                ExplorerItem::Equipment(Compass),
-                ExplorerItem::Equipment(Telescope)])
-        };
-        let canoe_or_not = rng.sample(&Uniform::new_inclusive(0, 1));
-        if canoe_or_not == 1 {
-            explorer.inventory.insert(ExplorerItem::Equipment(Canoe));
-        }
-        explorers.insert(explorer);
-    }
-
     let expedition = Expedition {
-        explorers
+        explorers: SelectionStorage::new_from(&explorers)
     };
 
     Realm {
@@ -201,7 +112,7 @@ fn realm_tutorial(id: usize, template: &RealmTemplate) -> Realm {
         expedition,
         age: 0,
         title: "tutorial".to_string(),
-        story: "embark all explorers.".to_string(),
+        story: "".to_string(),
         objectives: vec![RealmObjective::EmbarkExplorers],
         completed: vec![],
         done: false
@@ -327,4 +238,106 @@ fn tutorial_regions() -> Vec<Region> {
 
         region
     }).collect()
+}
+
+fn tutorial_explorers() -> Vec<Explorer> {
+    let mut rng = thread_rng();
+
+    // Pots
+    // Tinder
+    // Firewood(usize)
+    // Coal(usize)
+    // Gold(usize)
+    // Coins(usize)
+    // Tools
+    // Flint
+    // Wax
+    // SealStamp
+    // Blankets
+    // Herbs(usize)
+    // Food(usize)
+    // Pipe
+    // Telescope
+    // Compass
+    // Parchment(usize)
+    // Map
+    // Knife
+    // Spear
+    // Bow
+    // Arrows(usize)
+    // Canoe
+    // Raft
+    let mut explorers = vec![];
+    let how_many_explorers = rng.sample(&Uniform::new_inclusive(3, 5));
+
+    explorers.push(Explorer {
+        id: 0,
+        traits: SelectionStorage::new_from(&vec![ExplorerTrait::Ranger]),
+        region: None,
+        inventory: SelectionStorage::new_from(&vec![
+            ExplorerItem::Equipment(Bow),
+            ExplorerItem::Equipment(Arrows(75)),
+            ExplorerItem::Equipment(Knife),
+            ExplorerItem::Equipment(Coins(110)),
+            ExplorerItem::Equipment(Telescope),
+            ExplorerItem::Equipment(Herbs(20))])
+    });
+    explorers.push(Explorer {
+        id: 1,
+        traits: SelectionStorage::new_from(&vec![ExplorerTrait::Builder]),
+        region: None,
+        inventory: SelectionStorage::new_from(&vec![
+            ExplorerItem::Equipment(Tools),
+            ExplorerItem::Equipment(Food(10)),
+            ExplorerItem::Equipment(Pipe),
+            ExplorerItem::Equipment(Blankets),
+            ExplorerItem::Equipment(Knife)])
+    });
+    explorers.push(Explorer {
+        id: 2,
+        traits: SelectionStorage::new_from(&vec![]),
+        region: None,
+        inventory: SelectionStorage::new_from(&vec![
+            ExplorerItem::Equipment(Pots),
+            ExplorerItem::Equipment(Tinder),
+            ExplorerItem::Equipment(Firewood(4)),
+            ExplorerItem::Equipment(Flint),
+            ExplorerItem::Equipment(Rope)])
+    });
+
+    if how_many_explorers > 3 {
+        explorers.push(Explorer {
+            id: 3,
+            traits: SelectionStorage::new_from(&vec![ExplorerTrait::Cartographer]),
+            region: None,
+            inventory: SelectionStorage::new_from(&vec![
+                ExplorerItem::Equipment(Parchment(10)),
+                ExplorerItem::Equipment(Map),
+                ExplorerItem::Equipment(Rope),
+                ExplorerItem::Equipment(Wax),
+                ExplorerItem::Equipment(SealStamp)])
+        });
+    }
+
+    if how_many_explorers > 4 {
+        let mut explorer = Explorer {
+            id: 4,
+            traits: SelectionStorage::new_from(&vec![ExplorerTrait::Sailor]),
+            region: None,
+            inventory: SelectionStorage::new_from(&vec![
+                ExplorerItem::Equipment(Coins(32)),
+                ExplorerItem::Equipment(Gold(4)),
+                ExplorerItem::Equipment(Rope),
+                ExplorerItem::Equipment(Knife),
+                ExplorerItem::Equipment(Compass),
+                ExplorerItem::Equipment(Telescope)])
+        };
+        let canoe_or_not = rng.sample(&Uniform::new_inclusive(0, 1));
+        if canoe_or_not == 1 {
+            explorer.inventory.insert(ExplorerItem::Equipment(Canoe));
+        }
+        explorers.push(explorer);
+    }
+
+    explorers
 }
