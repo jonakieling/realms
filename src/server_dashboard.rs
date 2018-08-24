@@ -63,22 +63,22 @@ pub fn draw(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtoc
         	let clients = clients.iter().enumerate().map(|(index, (_, client))| {
         		match client.connected {
         		    true => Row::StyledData(
-	                    vec![format!("{}", index), format!("{}", client.id), format!("{}", client.time.format("%H:%M:%S %d.%m.%y"))].into_iter(),
+	                    vec![format!("{}", index), format!("{}", client.id), format!("{}", client.completed_variants.len()), format!("{}", client.time.format("%H:%M:%S %d.%m.%y"))].into_iter(),
 	                    &done
                 	),
         		    false => Row::StyledData(
-	                    vec![format!("{}", index), format!("{}", client.id), format!("{}", client.time.format("%H:%M:%S %d.%m.%y"))].into_iter(),
+	                    vec![format!("{}", index), format!("{}", client.id), format!("{}", client.completed_variants.len()), format!("{}", client.time.format("%H:%M:%S %d.%m.%y"))].into_iter(),
 	                    &style
 	                ),
         		}
             });
 
             Table::new(
-                ["idx", "uuid", "time"].into_iter(),
+                ["idx", "uuid", "realms", "time"].into_iter(),
                 clients
             ).block(Block::default().title("Clients").borders(Borders::ALL))
                 .header_style(Style::default().fg(Color::Yellow))
-                .widths(&[4, 48, 17])
+                .widths(&[4, 42, 6, 17])
                 .render(t, &chunks[1]);
 
 

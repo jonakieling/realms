@@ -32,7 +32,9 @@ pub struct Client {
 	pub id: Uuid,
 	pub connected: bool,
 	pub time: DateTime<Local>,
-	pub realm_variant: RealmVariant
+	pub realms_list: SelectionStorage<RealmId>,
+	pub realm_variant: RealmVariant,
+	pub completed_variants: Vec<RealmVariant>
 }
 
 impl Client {
@@ -41,7 +43,9 @@ impl Client {
 			id,
 			connected: true,
 			time: Local::now(),
-			realm_variant: RealmVariant::Tutorial
+			realms_list: SelectionStorage::new(),
+			realm_variant: RealmVariant::Tutorial,
+			completed_variants: vec![]
 		}
 	}
 }
@@ -125,17 +129,15 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
     		RealmsProtocol::Connect(id)
         },
         RealmsProtocol::RequestRealmsList => {
-    		let realms: Vec<RealmId> = realms.iter().map(|realm| {
-    			realm.id
-    		}).collect();
     		requests.push((client_id, request, Local::now()));
 
-    		RealmsProtocol::RealmsList(SelectionStorage::new_from(&realms))
+    		RealmsProtocol::RealmsList(client.realms_list.clone())
         },
         RealmsProtocol::RequestNewRealm => {
         	let id = realms.len();
 	        let mut realm = client.realm_variant.create(id);
     		realms.push(realm.clone());
+    		client.realms_list.insert(realm.id);
     		requests.push((client_id, request, Local::now()));
 
     		RealmsProtocol::Realm(realm)
@@ -153,6 +155,7 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
 	        	let id = realms.len();
 	        	let realm = client.realm_variant.create(id);
 				realms.push(realm.clone());
+    			client.realms_list.insert(realm.id);
     			requests.push((client_id, request, Local::now()));
 
 				RealmsProtocol::Realm(realm)
@@ -170,7 +173,11 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
 	        	}
 
 	        	if let Some(mut realm) = realms.get_mut(realm_id) {
+	        		let done_before = realm.done;
 	    	    	client.realm_variant.state(realm);
+	    	    	if realm.done && !done_before {
+	    	    		client.completed_variants.push(client.realm_variant.clone());
+	    	    	}
 	    			requests.push((client_id, request, Local::now()));
 					RealmsProtocol::Realm(realm.clone())
 	        	} else {
@@ -211,7 +218,11 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
 			}
 			if let Some(mut realm) = realms.get_mut(realm_id) {
 	        	if valid_action {
-    		    	client.realm_variant.state(realm);
+	        		let done_before = realm.done;
+	    	    	client.realm_variant.state(realm);
+	    	    	if realm.done && !done_before {
+	    	    		client.completed_variants.push(client.realm_variant.clone());
+	    	    	}
     		    	requests.push((client_id, RealmsProtocol::Explorer(Move::Action(realm_id, region_id, explorer_id, action)), Local::now()));
 					RealmsProtocol::Realm(realm.clone())
 
