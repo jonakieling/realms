@@ -338,7 +338,10 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
         },
         InteractiveUi::ExplorerOrders => {
             SelectableList::default()
-                .block(Block::default().borders(Borders::ALL).title("Explorer [Enter]").border_style(Style::default().fg(Color::Yellow)))
+                .block(Block::default()
+                    .borders(Borders::ALL)
+                    .title("Explorer [Enter]")
+                    .border_style(Style::default().fg(Color::Yellow)))
                 .items(&explorer_orders)
                 .select(explorer_orders_index)
                 .highlight_style(
@@ -350,8 +353,11 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
         },
         InteractiveUi::ExplorerInventory => {
             SelectableList::default()
-                .block(Block::default().borders(Borders::ALL).title("Inventory [Bsp to exit, Enter drop/forget]")
-                .border_style(Style::default().fg(Color::Yellow)))
+                .block(Block::default()
+                    .borders(Borders::ALL)
+                    .title("Inventory [Bsp to exit, Enter drop/forget]")
+                    .border_style(Style::default().fg(Color::Yellow))
+                    .title_style(Style::default().fg(Color::Yellow)))
                 .items(&inventory)
                 .select(inventory_index)
                 .highlight_style(
@@ -364,9 +370,12 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
         InteractiveUi::ExplorerActions => {
             if let Some(explorer) = data.realm.expedition.explorers.current() {
                 Paragraph::default()
-                    .text(
-                        &format!("{:?}", explorer.trait_actions())
-                    ).block(Block::default().borders(Borders::ALL).title("Actions [Bsp to exit]").border_style(Style::default().fg(Color::Yellow)))
+                    .text(&format!("{:?}", explorer.trait_actions()))
+                    .block(Block::default()
+                        .borders(Borders::ALL)
+                        .title("Actions [Bsp to exit]")
+                        .border_style(Style::default().fg(Color::Yellow))
+                        .title_style(Style::default().fg(Color::Yellow)))
                     .wrap(true)
                     .render(t, area);
                 // end Paragraph::default() 
@@ -380,7 +389,11 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
                 }
             }
             SelectableList::default()
-                .block(Block::default().borders(Borders::ALL).title(&title).border_style(Style::default().fg(Color::Yellow)))
+                .block(Block::default()
+                    .borders(Borders::ALL)
+                    .title(&title)
+                    .border_style(Style::default().fg(Color::Yellow))
+                    .title_style(Style::default().fg(Color::Yellow)))
                 .items(&regions)
                 .select(region_index)
                 .highlight_style(

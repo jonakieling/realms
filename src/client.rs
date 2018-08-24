@@ -88,16 +88,20 @@ impl Periscope {
 
 		realms.last();
 
-		Periscope {
+		let mut periscope = Periscope {
 			stream,
 			data: Data {
 				id: client_id,
 				realm,
 				realms,
-				explorer_orders: SelectionStorage::new_from(&vec![ExplorerOrders::Inventory, ExplorerOrders::Move]),
+				explorer_orders: SelectionStorage::new(),
 				active: InteractiveUi::Regions
 			}
-		}
+		};
+
+		update_explorer_available_orders(&mut periscope.data);
+
+		periscope
 	}
 
 	pub fn run(mut self, terminal: &mut Terminal<RawBackend>, rx: &Receiver<Event>) -> Result<(), io::Error> {
@@ -208,7 +212,6 @@ fn handle_realms_events(stream: &mut TcpStream, data: &mut Data, key: event::Key
 	    		}
 		    	data.active = InteractiveUi::Regions;
     		}
-			update_explorer_available_orders(data);
 		},
 		_ => { }
 	}
