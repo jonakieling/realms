@@ -44,7 +44,7 @@ impl Client {
 			connected: true,
 			time: Local::now(),
 			realms_list: SelectionStorage::new(),
-			realm_variant: RealmVariant::Tutorial,
+			realm_variant: RealmVariant::Tutorial(RealmTemplate::new(RealmTemplateVariant::Tutorial)),
 			completed_variants: vec![]
 		}
 	}

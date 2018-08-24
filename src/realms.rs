@@ -8,8 +8,30 @@ use itertools::Itertools;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RealmVariant {
-	Tutorial,
-	// PrologueTheQueen
+	Tutorial(RealmTemplate),
+	// PrologueTheQueen(RealmTemplate)
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RealmTemplate {
+    regions: Vec<Region>
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum RealmTemplateVariant {
+    Tutorial,
+    // PrologueTheQueen
+}
+
+impl RealmTemplate {
+    pub fn new(variant: RealmTemplateVariant) -> RealmTemplate {
+        match variant {
+            RealmTemplateVariant::Tutorial => RealmTemplate {
+                regions: tutorial_regions()
+            }
+        }
+        
+    }
 }
 
 pub trait RealmStrategy {
@@ -22,13 +44,13 @@ pub trait RealmStrategy {
 impl RealmStrategy for RealmVariant {
     fn create(&self, id: usize) -> Realm {
         match self {
-            RealmVariant::Tutorial => { realm_dev(id) }
+            RealmVariant::Tutorial(template) => { realm_tutorial(id, template) }
         }
     }
 
     fn state(&self, realm: &mut Realm) {
         match self {
-            RealmVariant::Tutorial => {
+            RealmVariant::Tutorial(_template) => {
                 let mut embarked = 0;
                 for explorer in realm.expedition.explorers.iter() {
                     if explorer.region.is_some() {
@@ -46,7 +68,7 @@ impl RealmStrategy for RealmVariant {
 
     fn valid_move(&self, _realm: &Realm, _explorer: ExplorerId, _region: RegionId) -> bool {
         match self {
-            RealmVariant::Tutorial => {
+            RealmVariant::Tutorial(_template) => {
                 // no movement restrictions for tutorial
                 true
             }
@@ -55,7 +77,7 @@ impl RealmStrategy for RealmVariant {
 
     fn valid_action(&self, _realm: &Realm, _explorer: ExplorerId, _region: RegionId, _action: &ExplorerAction) -> bool {
         match self {
-            RealmVariant::Tutorial => {
+            RealmVariant::Tutorial(_template) => {
                 // no restrictions on actions for tutorial
                 true
             }
@@ -63,124 +85,11 @@ impl RealmStrategy for RealmVariant {
     }      
 }
 
-fn realm_dev(id: usize) -> Realm {
+fn realm_tutorial(id: usize, template: &RealmTemplate) -> Realm {
     let mut rng = thread_rng();
-    let mut rng2 = thread_rng();
-    let mut region_id = 0;
-    let regions: Vec<Region> = rng.sample_iter(&Uniform::new_inclusive(1, 4)).take(19).map(|number| {
-        let terrain = match number {
-            1 => Terrain::Coast,
-            2 => Terrain::Planes,
-            3 => Terrain::Forest,
-            _ => Terrain::Mountain,
-        };
 
-        // Town
-        // River
-        // Carravan
-        // Merchant
-        // Camp
-        // Gear(Gear)
-        // Canyon
-        // Bolders
-        // Grasland
-        // Creek
-        // Grove
-        // Cliffs
-        // Island
-        // Lake
-        // Pond
-        // Clearing
-        let particularities: Vec<Particularity> = match terrain {
-            Terrain::Coast => {
-                let how_many_particularities = rng2.sample(&Uniform::new_inclusive(1, 2));
-
-                rng2.sample_iter(&Uniform::new_inclusive(1, 9)).take(how_many_particularities).map(|number| {
-                    match number {
-                        1 => Particularity::Town,
-                        2 => Particularity::River,
-                        3 => Particularity::Cliffs,
-                        4 => Particularity::Cliffs,
-                        5 => Particularity::Cliffs,
-                        6 => Particularity::Island,
-                        7 => Particularity::Island,
-                        8 => Particularity::Ship,
-                        _ => Particularity::Carravan
-                    }
-                }).unique().collect()
-            },
-            Terrain::Planes => {
-                let how_many_particularities = rng2.sample(&Uniform::new_inclusive(1, 3));
-
-                rng2.sample_iter(&Uniform::new_inclusive(1, 10)).take(how_many_particularities).map(|number| {
-                    match number {
-                        1 => Particularity::Town,
-                        2 => Particularity::Merchant,
-                        3 => Particularity::Grove,
-                        4 => Particularity::Grove,
-                        5 => Particularity::Creek,
-                        6 => Particularity::Grasland,
-                        7 => Particularity::Grasland,
-                        8 => Particularity::Grasland,
-                        9 => Particularity::River,
-                        _ => Particularity::Carravan
-                    }
-                }).unique().collect()
-            },
-            Terrain::Forest => {
-                let how_many_particularities = rng2.sample(&Uniform::new_inclusive(0, 2));
-
-                rng2.sample_iter(&Uniform::new_inclusive(1, 9)).take(how_many_particularities).map(|number| {
-                    match number {
-                        1 => Particularity::Town,
-                        2 => Particularity::River,
-                        3 => Particularity::Creek,
-                        4 => Particularity::Creek,
-                        5 => Particularity::Clearing,
-                        6 => Particularity::Clearing,
-                        7 => Particularity::Clearing,
-                        8 => Particularity::Pond,
-                        _ => Particularity::Carravan
-                    }
-                }).unique().collect()
-            },
-            Terrain::Mountain => {
-                let how_many_particularities = rng2.sample(&Uniform::new_inclusive(0, 1));
-
-                rng2.sample_iter(&Uniform::new_inclusive(1, 8)).take(how_many_particularities).map(|number| {
-                    match number {
-                        1 => Particularity::Town,
-                        2 => Particularity::River,
-                        3 => Particularity::Canyon,
-                        4 => Particularity::Bolders,
-                        5 => Particularity::Bolders,
-                        6 => Particularity::Bolders,
-                        7 => Particularity::Lake,
-                        _ => Particularity::Carravan
-                    }
-                }).unique().collect()
-            }
-        };
-
-        let resources = match terrain {
-            Terrain::Planes => 6,
-            Terrain::Forest => 5,
-            Terrain::Coast => 3,
-            Terrain::Mountain => 2,
-        };
-
-        let region = Region {
-            id: region_id,
-            terrain,
-            particularities: SelectionStorage::new_from(&particularities),
-            buildings: SelectionStorage::new(),
-            mapped: false,
-            resources
-        };
-        region_id += 1;
-
-        region
-    }).collect();
+    // todo: here the initial regions of the realm should be assembled
+    let regions = template.regions.clone();
 
     let island = Island {
         regions: SelectionStorage::new_from(&regions)
@@ -297,4 +206,125 @@ fn realm_dev(id: usize) -> Realm {
         completed: vec![],
         done: false
     }
+}
+
+fn tutorial_regions() -> Vec<Region> {
+    let mut rng = thread_rng();
+    let mut rng2 = thread_rng();
+    let mut region_id = 0;
+
+    rng.sample_iter(&Uniform::new_inclusive(1, 4)).take(19).map(|number| {
+        let terrain = match number {
+            1 => Terrain::Coast,
+            2 => Terrain::Planes,
+            3 => Terrain::Forest,
+            _ => Terrain::Mountain,
+        };
+
+        // Town
+        // River
+        // Carravan
+        // Merchant
+        // Camp
+        // Gear(Gear)
+        // Canyon
+        // Bolders
+        // Grasland
+        // Creek
+        // Grove
+        // Cliffs
+        // Island
+        // Lake
+        // Pond
+        // Clearing
+        let particularities: Vec<Particularity> = match terrain {
+            Terrain::Coast => {
+                let how_many_particularities = rng2.sample(&Uniform::new_inclusive(1, 2));
+
+                rng2.sample_iter(&Uniform::new_inclusive(1, 9)).take(how_many_particularities).map(|number| {
+                    match number {
+                        1 => Particularity::Town,
+                        2 => Particularity::River,
+                        3 => Particularity::Cliffs,
+                        4 => Particularity::Cliffs,
+                        5 => Particularity::Cliffs,
+                        6 => Particularity::Island,
+                        7 => Particularity::Island,
+                        8 => Particularity::Ship,
+                        _ => Particularity::Carravan
+                    }
+                }).unique().collect()
+            },
+            Terrain::Planes => {
+                let how_many_particularities = rng2.sample(&Uniform::new_inclusive(1, 3));
+
+                rng2.sample_iter(&Uniform::new_inclusive(1, 10)).take(how_many_particularities).map(|number| {
+                    match number {
+                        1 => Particularity::Town,
+                        2 => Particularity::Merchant,
+                        3 => Particularity::Grove,
+                        4 => Particularity::Grove,
+                        5 => Particularity::Creek,
+                        6 => Particularity::Grasland,
+                        7 => Particularity::Grasland,
+                        8 => Particularity::Grasland,
+                        9 => Particularity::River,
+                        _ => Particularity::Carravan
+                    }
+                }).unique().collect()
+            },
+            Terrain::Forest => {
+                let how_many_particularities = rng2.sample(&Uniform::new_inclusive(0, 2));
+
+                rng2.sample_iter(&Uniform::new_inclusive(1, 9)).take(how_many_particularities).map(|number| {
+                    match number {
+                        1 => Particularity::Town,
+                        2 => Particularity::River,
+                        3 => Particularity::Creek,
+                        4 => Particularity::Creek,
+                        5 => Particularity::Clearing,
+                        6 => Particularity::Clearing,
+                        7 => Particularity::Clearing,
+                        8 => Particularity::Pond,
+                        _ => Particularity::Carravan
+                    }
+                }).unique().collect()
+            },
+            Terrain::Mountain => {
+                let how_many_particularities = rng2.sample(&Uniform::new_inclusive(0, 1));
+
+                rng2.sample_iter(&Uniform::new_inclusive(1, 8)).take(how_many_particularities).map(|number| {
+                    match number {
+                        1 => Particularity::Town,
+                        2 => Particularity::River,
+                        3 => Particularity::Canyon,
+                        4 => Particularity::Bolders,
+                        5 => Particularity::Bolders,
+                        6 => Particularity::Bolders,
+                        7 => Particularity::Lake,
+                        _ => Particularity::Carravan
+                    }
+                }).unique().collect()
+            }
+        };
+
+        let resources = match terrain {
+            Terrain::Planes => 6,
+            Terrain::Forest => 5,
+            Terrain::Coast => 3,
+            Terrain::Mountain => 2,
+        };
+
+        let region = Region {
+            id: region_id,
+            terrain,
+            particularities: SelectionStorage::new_from(&particularities),
+            buildings: SelectionStorage::new(),
+            mapped: false,
+            resources
+        };
+        region_id += 1;
+
+        region
+    }).collect()
 }
