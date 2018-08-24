@@ -162,6 +162,8 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         	}
         },
         RealmsProtocol::Explorer(Move::ChangeRegion(realm_id, region_id, explorer_id)) => {
+        	// todo: check consequences of move for realm template
+
         	let mut valid_move = false;
         	if let Some(realm) = realms.get(realm_id) {
         	    valid_move = client.realm_variant.valid_move(realm, explorer_id, region_id);
@@ -188,6 +190,8 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         	}
         },
         RealmsProtocol::Explorer(Move::Action(realm_id, region_id, explorer_id, action)) => {
+        	// todo: save result of action in realm template aswell
+        	// or only in template and let client side realm be filled by state update
 
         	let mut valid_action = false;
         	if let Some(realm) = realms.get(realm_id) {
@@ -234,6 +238,8 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
     	    }
         },
         RealmsProtocol::DropEquipment(realm_id, region_id, explorer_id, item) => {
+        	// todo: drop item in realm template aswell
+
         	if let Some(region) = realms.get_mut(realm_id).explorer_region(explorer_id) {
         	    region.particularities.insert(Particularity::Item(item));
         	}
@@ -252,6 +258,8 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
 		    }
         },
         RealmsProtocol::PickEquipment(realm_id, region_id, explorer_id, item) => {
+        	// todo: pick item in realm template aswell
+
         	if let Some(region) = realms.get_mut(realm_id).explorer_region(explorer_id) {
         		region.particularities.storage_mut().iter().position(move |ref n| **n == Particularity::Item(item)).map(|equipment| {
     				region.particularities.storage_mut().remove(equipment);

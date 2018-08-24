@@ -24,6 +24,7 @@ pub enum RealmTemplateVariant {
     // PrologueTheQueen
 }
 
+// todo: consider renaming this to Realm and the current Realm to RealmView
 impl RealmTemplate {
     pub fn new(variant: RealmTemplateVariant) -> RealmTemplate {
         match variant {
@@ -52,19 +53,47 @@ impl RealmStrategy for RealmVariant {
 
     fn state(&self, realm: &mut Realm) {
         match self {
-            RealmVariant::Tutorial(_template) => {
+            RealmVariant::Tutorial(template) => {
+
+                realm.island.regions.clear();
+
                 let mut embarked = 0;
                 for explorer in realm.expedition.explorers.iter() {
+                    if let Some(neighbor_region) = explorer.region {
+                        // todo this breaks id as index! when adding regions based on neighborhood and the like
+                        if neighbor_region > 0 {
+                            if let Some(region) = template.regions.get((neighbor_region - 1).max(0)) {
+                                realm.island.regions.insert(region.clone());
+                            }
+                        }
+                        if let Some(region) = template.regions.get(neighbor_region) {
+                            realm.island.regions.insert(region.clone());
+                        }
+                        if let Some(region) = template.regions.get(neighbor_region + 1) {
+                            realm.island.regions.insert(region.clone());
+                        }
+                    }
                     if explorer.region.is_some() {
                         embarked += 1;
                     }
                 }
+
+                for region in template.regions.iter() {
+                    if region.mapped {
+                        realm.island.regions.insert(region.clone());
+                    }
+                }
+
                 if embarked == realm.expedition.explorers.iter().len() {
                     realm.completed.push(RealmObjective::EmbarkExplorers);
                     realm.story = "all explorers have embarked. you can keep playing around.".to_string();
                     realm.done = true;
                 }
                 realm.age += 1;
+
+                // todo regions (and possibly anything with an id) set and get by id
+                // unique with simple eq does not remove correct values necessarily.
+                // realm.island.regions.iter().unique();
             }
         }
     }  

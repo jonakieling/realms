@@ -1,6 +1,8 @@
 
 use utility::SelectionStorage;
 use std::fmt;
+use std::cmp;
+use std::hash::{Hash, Hasher};
 
 use uuid::Uuid;
 
@@ -170,6 +172,20 @@ pub struct Region {
     pub buildings: SelectionStorage<String>,
     pub mapped: bool,
     pub resources: usize
+}
+
+impl cmp::PartialEq for Region {
+    fn eq(&self, other: &Region) -> bool {
+        self.id == other.id
+    }
+}
+
+impl cmp::Eq for Region { }
+
+impl Hash for Region {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
 }
 
 impl fmt::Display for Region {

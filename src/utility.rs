@@ -113,4 +113,8 @@ impl<T: Clone> SelectionStorage<T> {
     pub fn storage_mut(&mut self) -> &mut Vec<T> {
         &mut self.storage
     }
+
+    pub fn clear(&mut self) {
+        self.storage.clear()
+    }
 }
