@@ -55,31 +55,44 @@ impl RealmStrategy for RealmVariant {
         match self {
             RealmVariant::Tutorial(template) => {
 
-                realm.island.regions.clear();
+                for (_, region) in realm.island.regions.iter_mut() {
+                    region.resources = 0;
+                    region.buildings = SelectionStorage::new();
+                    region.particularities = SelectionStorage::new();
+                    region.sight = RegionVisibility::None;
+                }
+                
+                for (_, region) in template.regions.iter() {
+                    if region.mapped {
+                        let mut region = region.clone();
+                        region.sight = RegionVisibility::Partial;
+                        realm.island.regions.insert(region.id, region.clone());
+                    }
+                }
 
                 let mut embarked = 0;
                 for explorer in realm.expedition.explorers.iter() {
                     if let Some(neighbor_region) = explorer.region {
                         if neighbor_region > 0 {
                             if let Some(region) = template.regions.storage().get(&(neighbor_region - 1).max(0)) {
+                                let mut region = region.clone();
+                                region.sight = RegionVisibility::Partial;
                                 realm.island.regions.insert(region.id, region.clone());
                             }
                         }
                         if let Some(region) = template.regions.storage().get(&neighbor_region){
-                            realm.island.regions.insert(region.id, region.clone());
+                            let mut region = region.clone();
+                            region.sight = RegionVisibility::Live;
+                            realm.island.regions.insert(region.id, region);
                         }
                         if let Some(region) = template.regions.storage().get(&(neighbor_region + 1)) {
+                            let mut region = region.clone();
+                            region.sight = RegionVisibility::Partial;
                             realm.island.regions.insert(region.id, region.clone());
                         }
                     }
                     if explorer.region.is_some() {
                         embarked += 1;
-                    }
-                }
-
-                for (_, region) in template.regions.iter() {
-                    if region.mapped {
-                        realm.island.regions.insert(region.id, region.clone());
                     }
                 }
 
@@ -120,7 +133,9 @@ fn realm_tutorial(id: usize, template: &RealmTemplate) -> Realm {
 
     let mut regions = SelectionHashMap::new();
     for (id, region) in template.regions.iter().take(2) {
-        regions.insert(*id, region.clone());
+        let mut region = region.clone();
+        region.sight = RegionVisibility::Complete;
+        regions.insert(*id, region);
     }
     let island = Island {
         regions
@@ -258,7 +273,8 @@ fn tutorial_regions() -> SelectionHashMap<Region> {
             particularities: SelectionStorage::new_from(&particularities),
             buildings: SelectionStorage::new(),
             mapped: false,
-            resources
+            resources,
+            sight: RegionVisibility::None
         };
         region_id += 1;
 

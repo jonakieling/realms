@@ -8,6 +8,7 @@ use tui::widgets::{Widget, Paragraph, Block, Borders, List, Item, SelectableList
 use tui::style::{Style, Color};
 
 use client::*;
+use tokens::RegionVisibility;
 
 pub fn draw(terminal: &mut Terminal<RawBackend>, data: &mut Data) -> Result<(), io::Error> {
 	let terminal_area = terminal.size().expect("could not get terminal size.");
@@ -196,14 +197,54 @@ fn draw_realm_region(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
             let green = Style::default().fg(Color::Green);
 
             let mut info = vec![];
-            info.push(Item::StyledData(
-                    format!("{:?}", region.buildings.storage()),
-                    &style
-            ));
-            info.push(Item::StyledData(
-                    format!("Resources {}", region.resources),
-                    &style
-            ));
+            match region.sight {
+                RegionVisibility::None => {
+                    info.push(Item::StyledData(
+                            format!("Discovered."),
+                            &cyan
+                    ));
+                },
+                RegionVisibility::Partial => {
+                    info.push(Item::StyledData(
+                            format!("Far away."),
+                            &cyan
+                    ));
+                    info.push(Item::StyledData(
+                            format!("{:?}", region.buildings.storage()),
+                            &style
+                    ));
+                },
+                RegionVisibility::Complete => {
+                    info.push(Item::StyledData(
+                            format!("In view."),
+                            &cyan
+                    ));
+                    info.push(Item::StyledData(
+                            format!("{:?}", region.buildings.storage()),
+                            &style
+                    ));
+
+                    info.push(Item::StyledData(
+                            format!("Resources {}", region.resources),
+                            &style
+                    ));
+                }
+                RegionVisibility::Live => {
+                    info.push(Item::StyledData(
+                            format!("Occupied."),
+                            &cyan
+                    ));
+                    info.push(Item::StyledData(
+                            format!("{:?}", region.buildings.storage()),
+                            &style
+                    ));
+
+                    info.push(Item::StyledData(
+                            format!("Resources {}", region.resources),
+                            &style
+                    ));
+                }
+            }
             if region.mapped {
                 info.push(Item::StyledData(
                         format!("Mapped"),

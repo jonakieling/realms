@@ -171,7 +171,16 @@ pub struct Region {
     pub particularities: SelectionStorage<Particularity>,
     pub buildings: SelectionStorage<String>,
     pub mapped: bool,
-    pub resources: usize
+    pub resources: usize,
+    pub sight: RegionVisibility
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum RegionVisibility {
+    None,
+    Partial,
+    Complete,
+    Live
 }
 
 impl cmp::PartialOrd for Region {
