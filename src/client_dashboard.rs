@@ -104,9 +104,11 @@ fn draw_realm_ui(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 	    .render(t, area, |t, chunks| {
 
 			let region_index = data.realm.island.regions.current_index();
-			let regions: Vec<String> = data.realm.island.regions.iter().map(|region| {
-				format!("{}", region)
+			let mut regions: Vec<String> = data.realm.island.regions.iter().map(|region| {
+				format!("{}", region.1)
 		    }).collect();
+
+            regions.sort();
 
 	    	let mut border_style = Style::default();
 	    	if let InteractiveUi::Regions = data.active {
@@ -323,7 +325,7 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
 
     let region_index = data.realm.island.regions.current_index();
     let regions: Vec<String> = data.realm.island.regions.iter().map(|region| {
-        format!("{}", region)
+        format!("{}", region.1)
     }).collect();
 
     let explorer_orders_index = data.explorer_orders.current_index();

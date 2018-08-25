@@ -14,8 +14,8 @@ pub enum RealmVariant {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RealmTemplate {
-    regions: Vec<Region>,
-    explorers: Vec<Explorer>
+    pub regions: SelectionHashMap<Region>,
+    pub explorers: Vec<Explorer>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -60,17 +60,16 @@ impl RealmStrategy for RealmVariant {
                 let mut embarked = 0;
                 for explorer in realm.expedition.explorers.iter() {
                     if let Some(neighbor_region) = explorer.region {
-                        // todo this breaks id as index! when adding regions based on neighborhood and the like
                         if neighbor_region > 0 {
-                            if let Some(region) = template.regions.get((neighbor_region - 1).max(0)) {
-                                realm.island.regions.insert(region.clone());
+                            if let Some(region) = template.regions.storage().get(&(neighbor_region - 1).max(0)) {
+                                realm.island.regions.insert(region.id, region.clone());
                             }
                         }
-                        if let Some(region) = template.regions.get(neighbor_region) {
-                            realm.island.regions.insert(region.clone());
+                        if let Some(region) = template.regions.storage().get(&neighbor_region){
+                            realm.island.regions.insert(region.id, region.clone());
                         }
-                        if let Some(region) = template.regions.get(neighbor_region + 1) {
-                            realm.island.regions.insert(region.clone());
+                        if let Some(region) = template.regions.storage().get(&(neighbor_region + 1)) {
+                            realm.island.regions.insert(region.id, region.clone());
                         }
                     }
                     if explorer.region.is_some() {
@@ -78,9 +77,9 @@ impl RealmStrategy for RealmVariant {
                     }
                 }
 
-                for region in template.regions.iter() {
+                for (_, region) in template.regions.iter() {
                     if region.mapped {
-                        realm.island.regions.insert(region.clone());
+                        realm.island.regions.insert(region.id, region.clone());
                     }
                 }
 
@@ -119,20 +118,16 @@ impl RealmStrategy for RealmVariant {
 
 fn realm_tutorial(id: usize, template: &RealmTemplate) -> Realm {
 
-    let mut regions = vec![];
-    for region in template.regions.iter().cloned().take(2) {
-        regions.push(region);
+    let mut regions = SelectionHashMap::new();
+    for (id, region) in template.regions.iter().take(2) {
+        regions.insert(*id, region.clone());
     }
     let island = Island {
-        regions: SelectionStorage::new_from(&regions)
+        regions
     };
 
-    let mut explorers = vec![];
-    for explorer in template.explorers.iter().cloned().take(2) {
-        explorers.push(explorer);
-    }
     let expedition = Expedition {
-        explorers: SelectionStorage::new_from(&explorers)
+        explorers: SelectionStorage::new_from(&template.explorers)
     };
 
     Realm {
@@ -148,12 +143,14 @@ fn realm_tutorial(id: usize, template: &RealmTemplate) -> Realm {
     }
 }
 
-fn tutorial_regions() -> Vec<Region> {
+fn tutorial_regions() -> SelectionHashMap<Region> {
     let mut rng = thread_rng();
     let mut rng2 = thread_rng();
     let mut region_id = 0;
 
-    rng.sample_iter(&Uniform::new_inclusive(1, 4)).take(19).map(|number| {
+    let mut regions = SelectionHashMap::new();
+
+    for number in rng.sample_iter(&Uniform::new_inclusive(1, 4)).take(19) {
         let terrain = match number {
             1 => Terrain::Coast,
             2 => Terrain::Planes,
@@ -265,8 +262,10 @@ fn tutorial_regions() -> Vec<Region> {
         };
         region_id += 1;
 
-        region
-    }).collect()
+        regions.insert(region.id, region);
+    }
+
+    regions
 }
 
 fn tutorial_explorers() -> Vec<Explorer> {

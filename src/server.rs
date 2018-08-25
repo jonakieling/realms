@@ -218,6 +218,8 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
     				    ExplorerAction::Sail => {},
     				    ExplorerAction::Wait => {}
     				}
+    				let RealmVariant::Tutorial(ref mut template) = client.realm_variant;
+    				template.regions.insert(region.id, region.clone());
     	    	}
 			}
 			if let Some(mut realm) = realms.get_mut(realm_id) {

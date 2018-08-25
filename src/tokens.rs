@@ -1,5 +1,5 @@
 
-use utility::SelectionStorage;
+use utility::*;
 use std::fmt;
 use std::cmp;
 use std::hash::{Hash, Hasher};
@@ -116,7 +116,7 @@ impl<'a> LazyRealmAccess<'a> for Option<&'a mut Realm> {
             Some(realm) => {
                 if let Some(explorer) = realm.expedition.explorers.storage_mut().get_mut(explorer) {
                     if let Some(region) = explorer.region {
-                        realm.island.regions.storage_mut().get_mut(region)
+                        realm.island.regions.storage_mut().get_mut(&region)
                     } else {
                         None
                     }
@@ -131,7 +131,7 @@ impl<'a> LazyRealmAccess<'a> for Option<&'a mut Realm> {
     fn region(&'a mut self, region: RegionId) -> Option<&'a mut Region> {
         match self {
             Some(realm) => {
-                realm.island.regions.storage_mut().get_mut(region)
+                realm.island.regions.storage_mut().get_mut(&region)
             },
             None => None,
         }
@@ -153,13 +153,13 @@ impl fmt::Display for RealmObjective {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Island {
-    pub regions: SelectionStorage<Region>
+    pub regions: SelectionHashMap<Region>
 }
 
 impl Island {
     pub fn new() -> Island {
         Island {
-            regions: SelectionStorage::new()
+            regions: SelectionHashMap::new()
         }
     }
 }
@@ -172,6 +172,18 @@ pub struct Region {
     pub buildings: SelectionStorage<String>,
     pub mapped: bool,
     pub resources: usize
+}
+
+impl cmp::PartialOrd for Region {
+    fn partial_cmp(&self, other: &Region) -> Option<cmp::Ordering> {
+        Some(self.id.cmp(&other.id))
+    }
+}
+
+impl cmp::Ord for Region {
+    fn cmp(&self, other: &Region) -> cmp::Ordering {
+        self.id.cmp(&other.id)
+    }
 }
 
 impl cmp::PartialEq for Region {

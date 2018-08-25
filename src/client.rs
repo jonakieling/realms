@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use Event;
 use tokens::*;
-use utility::SelectionStorage;
+use utility::*;
 
 use client_dashboard::draw;
 
@@ -432,17 +432,9 @@ fn handle_particularities_events(stream: &mut TcpStream, data: &mut Data, key: e
 }
 
 fn sync_regions_with_explorer(data: &mut Data) {
-	let mut current_explorer_region = 0;
 	if let Some(explorer_region) = data.realm.expedition.explorers.current().expect("could not access current explorers selection.").region {
-		current_explorer_region = explorer_region;
+		data.realm.island.regions.at(explorer_region);
 	}
-	let mut current_explorer_region_index = 0;
-	for (index, region) in data.realm.island.regions.iter().enumerate() {
-	    if current_explorer_region == region.id {
-	        current_explorer_region_index = index;
-	    }
-	}
-	data.realm.island.regions.at(current_explorer_region_index);
 }
 
 fn update_explorer_available_orders(data: &mut Data) {
@@ -458,7 +450,7 @@ fn update_explorer_available_orders(data: &mut Data) {
 	}
 }
 
-fn explorer_action(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, regions: &mut SelectionStorage<Region>, explorers: &mut SelectionStorage<Explorer>) -> RealmsProtocol {
+fn explorer_action(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, regions: &mut SelectionHashMap<Region>, explorers: &mut SelectionStorage<Explorer>) -> RealmsProtocol {
 	let mut request = RealmsProtocol::Void;
 
 	if let Some(region) = regions.current() {
@@ -472,7 +464,7 @@ fn explorer_action(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, 
 	request
 }
 
-fn explorer_drop(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, regions: &mut SelectionStorage<Region>, explorers: &mut SelectionStorage<Explorer>) -> RealmsProtocol {
+fn explorer_drop(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, regions: &mut SelectionHashMap<Region>, explorers: &mut SelectionStorage<Explorer>) -> RealmsProtocol {
 	let mut request = RealmsProtocol::Void;
 
 	if let Some(region) = regions.current() {
@@ -492,7 +484,7 @@ fn explorer_drop(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, re
 	request
 }
 
-fn explorer_handle_particularity(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, regions: &mut SelectionStorage<Region>, explorers: &mut SelectionStorage<Explorer>) -> RealmsProtocol {
+fn explorer_handle_particularity(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, regions: &mut SelectionHashMap<Region>, explorers: &mut SelectionStorage<Explorer>) -> RealmsProtocol {
 	let mut request = RealmsProtocol::Void;
 
 	if let Some(region) = regions.current() {
@@ -512,7 +504,7 @@ fn explorer_handle_particularity(stream: &mut TcpStream, client: ClientId, realm
 	request
 }
 
-fn explorer_move(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, regions: &mut SelectionStorage<Region>, explorers: &mut SelectionStorage<Explorer>) -> RealmsProtocol {
+fn explorer_move(stream: &mut TcpStream, client: ClientId, realm_id: RealmId, regions: &mut SelectionHashMap<Region>, explorers: &mut SelectionStorage<Explorer>) -> RealmsProtocol {
 	let mut request = RealmsProtocol::Void;
 
 	if let Some(region) = regions.current() {
