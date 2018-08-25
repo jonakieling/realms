@@ -172,7 +172,8 @@ pub struct Region {
     pub buildings: SelectionStorage<String>,
     pub mapped: bool,
     pub resources: usize,
-    pub sight: RegionVisibility
+    pub sight: RegionVisibility,
+    pub neighbors: Vec<RegionId>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

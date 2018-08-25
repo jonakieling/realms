@@ -36,6 +36,7 @@ mod server_dashboard;
 mod tokens;
 mod utility;
 mod realms;
+mod hex;
 
 #[derive(Debug)]
 pub enum Mode {

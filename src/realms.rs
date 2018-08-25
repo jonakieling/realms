@@ -6,6 +6,8 @@ use tokens::Equipment::*;
 use utility::*;
 use itertools::Itertools;
 
+use hex::*;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RealmVariant {
 	Tutorial(RealmTemplate),
@@ -72,23 +74,20 @@ impl RealmStrategy for RealmVariant {
 
                 let mut embarked = 0;
                 for explorer in realm.expedition.explorers.iter() {
-                    if let Some(neighbor_region) = explorer.region {
-                        if neighbor_region > 0 {
-                            if let Some(region) = template.regions.storage().get(&(neighbor_region - 1).max(0)) {
-                                let mut region = region.clone();
-                                region.sight = RegionVisibility::Partial;
-                                realm.island.regions.insert(region.id, region.clone());
+                    if let Some(explorer_region) = explorer.region {
+                        if let Some(explorer_region) = template.regions.storage().get(&explorer_region) {
+                            
+                            for neighbor in &explorer_region.neighbors {
+                                if let Some(region) = template.regions.storage().get(&neighbor).clone() {
+                                    let mut region = region.clone();
+                                    region.sight = RegionVisibility::Partial;
+                                    realm.island.regions.insert(region.id, region);
+                                }
                             }
-                        }
-                        if let Some(region) = template.regions.storage().get(&neighbor_region){
-                            let mut region = region.clone();
+
+                            let mut region = explorer_region.clone();
                             region.sight = RegionVisibility::Live;
                             realm.island.regions.insert(region.id, region);
-                        }
-                        if let Some(region) = template.regions.storage().get(&(neighbor_region + 1)) {
-                            let mut region = region.clone();
-                            region.sight = RegionVisibility::Partial;
-                            realm.island.regions.insert(region.id, region.clone());
                         }
                     }
                     if explorer.region.is_some() {
@@ -130,7 +129,6 @@ impl RealmStrategy for RealmVariant {
 }
 
 fn realm_tutorial(id: usize, template: &RealmTemplate) -> Realm {
-
     let mut regions = SelectionHashMap::new();
     for (id, region) in template.regions.iter().take(2) {
         let mut region = region.clone();
@@ -165,7 +163,11 @@ fn tutorial_regions() -> SelectionHashMap<Region> {
 
     let mut regions = SelectionHashMap::new();
 
-    for number in rng.sample_iter(&Uniform::new_inclusive(1, 4)).take(19) {
+    let cols = 5;
+    let rows = 5;
+    let hexes = hexes(cols, rows);
+
+    for number in rng.sample_iter(&Uniform::new_inclusive(1, 4)).take(cols * rows) {
         let terrain = match number {
             1 => Terrain::Coast,
             2 => Terrain::Planes,
@@ -274,11 +276,17 @@ fn tutorial_regions() -> SelectionHashMap<Region> {
             buildings: SelectionStorage::new(),
             mapped: false,
             resources,
-            sight: RegionVisibility::None
+            sight: RegionVisibility::None,
+            neighbors: vec![]
         };
         region_id += 1;
 
         regions.insert(region.id, region);
+
+        // here id matches index so we zip the hex neighbors onto the regions
+        for ((_, mut region), hex) in regions.iter_mut().zip(hexes.iter()) {
+            region.neighbors = hex.neighbors.clone();
+        }
     }
 
     regions
