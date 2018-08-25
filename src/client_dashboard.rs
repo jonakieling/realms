@@ -4,7 +4,7 @@ use std::io;
 use tui::Terminal;
 use tui::backend::RawBackend;
 use tui::layout::{Direction, Group, Size, Rect};
-use tui::widgets::{Widget, Paragraph, Block, Borders, List, Item, SelectableList};
+use tui::widgets::{Widget, Paragraph, Block, Borders, List, Item, SelectableList, Tabs};
 use tui::style::{Style, Color};
 
 use client::*;
@@ -15,19 +15,10 @@ pub fn draw(terminal: &mut Terminal<RawBackend>, data: &mut Data) -> Result<(), 
 			
 	Group::default()
         .direction(Direction::Vertical)
-		.sizes(&[Size::Fixed(4), Size::Min(0)])
+		.sizes(&[Size::Fixed(2), Size::Min(0)])
         .render(terminal, &terminal_area, |t, chunks| {
-
         	draw_header(t, &chunks[0], &data);
-
-	        match data.active {
-			    InteractiveUi::Realms => {
-    				draw_realms_list(t, &chunks[1], &data);
-			    },
-                _ => {
-                    draw_realm(t, &chunks[1], &data);
-                }
-			}
+            draw_tabs(t, &chunks[1], &data);
         });
 	// end Group::default()
 
@@ -41,20 +32,54 @@ fn draw_header(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
         .render(t, area, |t, chunks| {
         	Paragraph::default()
 		        .text(
-		            "cursor {mod=bold ↑→↓←}\nexit {mod=bold q}",
-		        ).block(Block::default().title("Abstract").borders(Borders::ALL))
+		            "cursor {mod=bold ↑→↓←} exit {mod=bold q}",
+		        ).block(Block::default().title("Abstract"))
 		        .render(t, &chunks[0]);
     		// end Paragraph::default()
 
         	Paragraph::default()
 		        .text(
 		            &format!("id {{mod=bold {}}}", data.id),
-		        ).block(Block::default().title("Client").borders(Borders::ALL))
+		        ).block(Block::default().title("Client"))
                 .wrap(true)
 		        .render(t, &chunks[1]);
     		// end Paragraph::default()
     	});
 	// end Group::default()
+}
+
+fn draw_tabs(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
+
+    Group::default()
+        .direction(Direction::Vertical)
+        .sizes(&[Size::Fixed(3), Size::Min(0)])
+        .render(t, area, |t, chunks| {
+
+            Tabs::default()
+                .block(Block::default().borders(Borders::ALL))
+                .titles(data.tabs.storage())
+                .select(data.tabs.current_index())
+                .style(Style::default().fg(Color::Cyan))
+                .highlight_style(Style::default().fg(Color::Yellow))
+                .render(t, &chunks[0]);
+            // end Tabs::default()
+
+            match data.tabs.current_index() {
+                0 => {
+                    draw_realm_ui(t, &chunks[1], &data);
+                },
+                1 => {
+                    draw_regions_list(t, &chunks[1], &data);
+                },
+                _ => {
+                    draw_realms_list(t, &chunks[1], &data);
+                }
+            }
+            
+            
+
+        });
+    // end Group::default()
 }
 
 fn draw_realms_list(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
@@ -85,101 +110,57 @@ fn draw_realms_list(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
     // end Group::default()
 }
 
-fn draw_realm(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
-
-	Group::default()
-        .direction(Direction::Vertical)
-		.sizes(&[Size::Min(0)])
-        .render(t, area, |t, chunks| {
-        	draw_realm_ui(t, &chunks[0], &data);
-
-        });
-    // end Group::default()
-}
-
-
 fn draw_realm_ui(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
 	Group::default()
-	    .direction(Direction::Horizontal)
-		.sizes(&[Size::Fixed(16), Size::Min(0)])
-	    .render(t, area, |t, chunks| {
+        .direction(Direction::Vertical)
+        .sizes(&[Size::Fixed(8), Size::Fixed(10), Size::Min(0)])
+        .render(t, area, |t, chunks| {
+            draw_realm_expedition(t, &chunks[0], &data);
+            if let InteractiveUi::Explorers = data.active {
+                if data.realm.expedition.explorers.current().expect("could not fetch current explorers selection.").region.is_some() {
+                    draw_realm_region(t, &chunks[1], &data);
+                } else {
+                    Paragraph::default()
+                        .text(
+                            "this explorer has not embarked yet. select the embark order and move them to a region."
+                        ).block(Block::default().borders(Borders::ALL).title("Region").border_style(Style::default()))
+                        .wrap(true)
+                        .render(t, &chunks[1]);
+                    // end Paragraph::default() 
+                }
+            } else {
+                draw_realm_region(t, &chunks[1], &data);
+            }
 
-			let region_index = data.realm.island.regions.current_index();
-			let mut regions: Vec<String> = data.realm.island.regions.iter().map(|region| {
-				format!("{}", region.1)
-		    }).collect();
+            let style = Style::default();
+            let done = Style::default().fg(Color::Green);
+            let mut border_style = Style::default();
+            if data.realm.done {
+                border_style = Style::default().fg(Color::Green);
+            }
 
-            regions.sort();
+            let objectives = data.realm.objectives.iter().map(|objective| {
+                if data.realm.completed.contains(objective) {
+                    Item::StyledData(
+                        format!("{}", objective),
+                        &done
+                    )
+                } else {
+                    Item::StyledData(
+                        format!("{}", objective),
+                        &style
+                    )
+                }
+            });
 
-	    	let mut border_style = Style::default();
-	    	if let InteractiveUi::Regions = data.active {
-	    	    border_style = Style::default().fg(Color::Yellow);
-	    	}
-	        SelectableList::default()
-	            .block(Block::default().borders(Borders::ALL).title(
-                    &format!("Island {}", data.realm.id.clone())
-                )
-                .border_style(border_style))
-	            .items(&regions)
-	            .select(region_index)
-	            .highlight_style(
-	                Style::default().fg(Color::Yellow)
-	            )
-	            .render(t, &chunks[0]);
-    		// end SelectableList::default()
-
-			Group::default()
-		        .direction(Direction::Vertical)
-	    		.sizes(&[Size::Fixed(8), Size::Fixed(10), Size::Min(0)])
-		        .render(t, &chunks[1], |t, chunks| {
-					draw_realm_expedition(t, &chunks[0], &data);
-					if let InteractiveUi::Explorers = data.active {
-		        		if data.realm.expedition.explorers.current().expect("could not fetch current explorers selection.").region.is_some() {
-							draw_realm_region(t, &chunks[1], &data);
-		        		} else {
-					    	Paragraph::default()
-						        .text(
-						            "this explorer has not embarked yet. select the embark order and move them to a region."
-						        ).block(Block::default().borders(Borders::ALL).title("Region").border_style(Style::default()))
-								.wrap(true)
-						        .render(t, &chunks[1]);
-							// end Paragraph::default()	
-			        	}
-		        	} else {
-						draw_realm_region(t, &chunks[1], &data);
-		        	}
-
-                    let style = Style::default();
-                    let done = Style::default().fg(Color::Green);
-                    let mut border_style = Style::default();
-                    if data.realm.done {
-                        border_style = Style::default().fg(Color::Green);
-                    }
-
-                    let objectives = data.realm.objectives.iter().map(|objective| {
-                        if data.realm.completed.contains(objective) {
-                            Item::StyledData(
-                                format!("{}", objective),
-                                &done
-                            )
-                        } else {
-                            Item::StyledData(
-                                format!("{}", objective),
-                                &style
-                            )
-                        }
-                    });
-
-                    List::new(objectives)
-                        .block(Block::default()
-                            .title(&data.realm.title)
-                            .borders(Borders::ALL)
-                            .border_style(border_style))
-                        .render(t, &chunks[2]);
-                    // end List::new()
-	        	});
-	        // end Group::default()
-		});
+            List::new(objectives)
+                .block(Block::default()
+                    .title(&data.realm.title)
+                    .borders(Borders::ALL)
+                    .border_style(border_style))
+                .render(t, &chunks[2]);
+            // end List::new()
+        });
 	// end Group::default()
 }
 
@@ -472,4 +453,33 @@ fn draw_realm_expedition_explorer(t: &mut Terminal<RawBackend>, area: &Rect, dat
             // end SelectableList::default()
         },
     }
+}
+
+fn draw_regions_list(t: &mut Terminal<RawBackend>, area: &Rect, data: &Data) {
+
+    Group::default()
+        .direction(Direction::Vertical)
+        .sizes(&[Size::Min(0)])
+        .render(t, area, |t, chunks| {
+
+            let border_style = Style::default().fg(Color::Yellow);
+
+            let region_index = data.realm.island.regions.current_index();
+            let regions: Vec<String> = data.realm.island.regions.iter().map(|region| {
+                format!("{}", region.1)
+            }).collect();
+
+            SelectableList::default()
+                .block(Block::default().borders(Borders::ALL).title("Regions")
+                .border_style(border_style))
+                .items(&regions)
+                .select(region_index)
+                .highlight_style(
+                    Style::default().fg(Color::Yellow),
+                )
+                .highlight_symbol("→")
+                .render(t, &chunks[0]);
+            // end SelectableList::default()
+        });
+    // end Group::default()
 }

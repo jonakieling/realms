@@ -21,10 +21,10 @@ use client_dashboard::draw;
 
 #[derive(Debug)]
 pub enum InteractiveUi {
-	Regions,
 	Explorers,
 	ExplorerOrders,
 	Realms,
+	Regions,
 	ExplorerMove,
 	ExplorerActions,
 	ExplorerInventory,
@@ -37,7 +37,8 @@ pub struct Data {
 	pub realm: Realm,
 	pub realms: SelectionStorage<RealmId>,
 	pub explorer_orders: SelectionStorage<ExplorerOrders>,
-	pub active: InteractiveUi
+	pub active: InteractiveUi,
+	pub tabs: SelectionStorage<String>
 }
 
 #[derive(Debug, Clone)]
@@ -95,7 +96,8 @@ impl Periscope {
 				realm,
 				realms,
 				explorer_orders: SelectionStorage::new(),
-				active: InteractiveUi::Regions
+				active: InteractiveUi::Explorers,
+				tabs: SelectionStorage::new_from(&vec!["Current Realm".to_string(), "Realm Regions".to_string()])
 			}
 		};
 
@@ -145,38 +147,55 @@ fn handle_events(rx: &Receiver<Event>, stream: &mut TcpStream, data: &mut Data) 
 			// todo: pulling updates (also keep-alive)
 	    },
 	    Event::Input(key) => {
-	    	match data.active {
-			    InteractiveUi::Regions => {
-			    	handle_regions_events(stream, data, key);
-			    },
-			    InteractiveUi::Explorers => {
-			    	handle_explorer_events(stream, data, key);
-			    },
-			    InteractiveUi::ExplorerOrders => {
-			    	handle_explorer_orders_events(stream, data, key);
-			    },
-			    InteractiveUi::Realms => {
-			    	handle_realms_events(stream, data, key);
-			    },
-			    InteractiveUi::ExplorerMove => {
-			    	handle_explorer_move_events(stream, data, key);
-			    },
-			    InteractiveUi::ExplorerActions => {
-			    	handle_explorer_actions_events(stream, data, key);
-			    },
-			    InteractiveUi::ExplorerInventory => {
-			    	handle_explorer_inventory_events(stream, data, key);
-			    },
-			    InteractiveUi::Particularities => {
-			    	handle_particularities_events(stream, data, key);
-			    }
-			}
-
-	    	if let event::Key::Char('q') = key {
-				if let RealmsProtocol::Quit = send_request(stream, data.id, RealmsProtocol::Quit) {
-					stream.shutdown(Shutdown::Both).expect("connection should have terminated.");
-					should_continue = false;
-				}
+	    	match key {
+	    	    event::Key::Char('\t') => {
+	    	    	data.tabs.next();
+	    	    	match data.tabs.current_index() {
+		                0 => {
+		                    data.active = InteractiveUi::Explorers;
+		                },
+		                1 => {
+		                    data.active = InteractiveUi::Regions;
+		                },
+		                _ => {
+		                    data.active = InteractiveUi::Realms;
+		                }
+		            }
+	    	    },
+	    	    event::Key::Char('q') => {
+					if let RealmsProtocol::Quit = send_request(stream, data.id, RealmsProtocol::Quit) {
+						stream.shutdown(Shutdown::Both).expect("connection should have terminated.");
+						should_continue = false;
+					}
+		    	},
+		    	_ => {
+					match data.active {
+					    InteractiveUi::Explorers => {
+					    	handle_explorer_events(stream, data, key);
+					    },
+					    InteractiveUi::ExplorerOrders => {
+					    	handle_explorer_orders_events(stream, data, key);
+					    },
+					    InteractiveUi::Realms => {
+					    	handle_realms_events(stream, data, key);
+					    },
+					    InteractiveUi::ExplorerMove => {
+					    	handle_explorer_move_events(stream, data, key);
+					    },
+					    InteractiveUi::ExplorerActions => {
+					    	handle_explorer_actions_events(stream, data, key);
+					    },
+					    InteractiveUi::ExplorerInventory => {
+					    	handle_explorer_inventory_events(stream, data, key);
+					    },
+					    InteractiveUi::Particularities => {
+					    	handle_particularities_events(stream, data, key);
+					    },
+					    InteractiveUi::Regions => {
+					    	handle_regions_events(stream, data, key);
+					    }
+					}
+		    	}
 	    	}
 		}
 	}
@@ -210,30 +229,9 @@ fn handle_realms_events(stream: &mut TcpStream, data: &mut Data, key: event::Key
 						data.realm = response_realm;
 					}
 	    		}
-		    	data.active = InteractiveUi::Regions;
+		    	data.active = InteractiveUi::Explorers;
+		    	data.tabs.next();
     		}
-		},
-		_ => { }
-	}
-}
-
-fn handle_regions_events(_stream: &mut TcpStream, data: &mut Data, key: event::Key) {
-	match key {
-		event::Key::Up => {
-	    	data.realm.island.regions.prev();
-		},
-		event::Key::Down => {
-	    	data.realm.island.regions.next();
-		},
-		event::Key::Right => {
-	    	data.active = InteractiveUi::Explorers;
-			update_explorer_available_orders(data);
-		},
-		event::Key::Left => {
-	    	data.active = InteractiveUi::Particularities;
-		},
-		event::Key::Char('l') => {
-			data.active = InteractiveUi::Realms;
 		},
 		_ => { }
 	}
@@ -253,11 +251,8 @@ fn handle_explorer_events(_stream: &mut TcpStream, data: &mut Data, key: event::
 	    	data.active = InteractiveUi::ExplorerOrders;
 		},
 		event::Key::Left => {
-	    	data.active = InteractiveUi::Regions;
+	    	data.active = InteractiveUi::Explorers;
 	    	data.realm.island.regions.at(0);
-		},
-		event::Key::Char('l') => {
-			data.active = InteractiveUi::Realms;
 		},
 		event::Key::Char('a') => {
 			data.active = InteractiveUi::ExplorerActions;
@@ -287,9 +282,6 @@ fn handle_explorer_orders_events(_stream: &mut TcpStream, data: &mut Data, key: 
 		event::Key::Right => {
 	    	data.active = InteractiveUi::Particularities;
 		},
-		event::Key::Char('l') => {
-			data.active = InteractiveUi::Realms;
-		},
 		event::Key::Char('\n') => {
 			match data.explorer_orders.current() {
 			    Some(ExplorerOrders::Inventory) => {
@@ -318,9 +310,6 @@ fn handle_explorer_move_events(stream: &mut TcpStream, data: &mut Data, key: eve
 		event::Key::Backspace => {
 	    	data.active = InteractiveUi::ExplorerOrders;
 		},
-		event::Key::Char('l') => {
-			data.active = InteractiveUi::Realms;
-		},
 		event::Key::Char('\n') => {
     		{
 				// request reset explorers index, we set it back afterwards
@@ -347,9 +336,6 @@ fn handle_explorer_actions_events(stream: &mut TcpStream, data: &mut Data, key: 
 		},
 		event::Key::Backspace => {
 	    	data.active = InteractiveUi::ExplorerOrders;
-		},
-		event::Key::Char('l') => {
-			data.active = InteractiveUi::Realms;
 		},
 		event::Key::Char('\n') => {
     		{
@@ -390,9 +376,6 @@ fn handle_explorer_inventory_events(stream: &mut TcpStream, data: &mut Data, key
 		event::Key::Backspace => {
 	    	data.active = InteractiveUi::ExplorerOrders;
 		},
-		event::Key::Char('l') => {
-			data.active = InteractiveUi::Realms;
-		},
 		_ => { }
 	}
 }
@@ -413,9 +396,6 @@ fn handle_particularities_events(stream: &mut TcpStream, data: &mut Data, key: e
 	    	data.active = InteractiveUi::ExplorerOrders;
 			update_explorer_available_orders(data);
 		},
-		event::Key::Right => {
-	    	data.active = InteractiveUi::Regions;
-		},
 		event::Key::Char('\n') => {
 			let last_explorers_index = data.realm.expedition.explorers.current_index();
 			if let RealmsProtocol::Realm(response_realm) = explorer_handle_particularity(stream, data.id, data.realm.id, &mut data.realm.island.regions, &mut data.realm.expedition.explorers) {
@@ -423,9 +403,18 @@ fn handle_particularities_events(stream: &mut TcpStream, data: &mut Data, key: e
 			}
 			data.realm.expedition.explorers.at(last_explorers_index);
     		sync_regions_with_explorer(data);
-		}
-		event::Key::Char('l') => {
-			data.active = InteractiveUi::Realms;
+		},
+		_ => { }
+	}
+}
+
+fn handle_regions_events(_stream: &mut TcpStream, data: &mut Data, key: event::Key) {
+	match key {
+		event::Key::Up => {
+	    	data.realm.island.regions.prev();
+		},
+		event::Key::Down => {
+	    	data.realm.island.regions.next();
 		},
 		_ => { }
 	}
