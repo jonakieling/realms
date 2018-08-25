@@ -175,12 +175,13 @@ impl<T: Clone + Ord> SelectionHashMap<T> {
         }
     }
 
-    pub fn at(&mut self, id: usize) {
+    pub fn at(&mut self, id: usize) -> Option<&T> {
         for (index, (key, _)) in self.storage.iter().enumerate() {
             if id == *key {
                 self.current_selection = index;
             }
         }
+        self.current()
     }
 
     pub fn current_index(&self) -> usize {
