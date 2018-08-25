@@ -173,7 +173,8 @@ pub struct Region {
     pub mapped: bool,
     pub resources: usize,
     pub sight: RegionVisibility,
-    pub neighbors: Vec<RegionId>
+    pub neighbors: Vec<RegionId>,
+    pub hex_offset_coords: (usize, usize)
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

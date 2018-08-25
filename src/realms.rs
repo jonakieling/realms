@@ -277,7 +277,8 @@ fn tutorial_regions() -> SelectionHashMap<Region> {
             mapped: false,
             resources,
             sight: RegionVisibility::None,
-            neighbors: vec![]
+            neighbors: vec![],
+            hex_offset_coords: (0, 0)
         };
         region_id += 1;
 
@@ -286,6 +287,7 @@ fn tutorial_regions() -> SelectionHashMap<Region> {
         // here id matches index so we zip the hex neighbors onto the regions
         for ((_, mut region), hex) in regions.iter_mut().zip(hexes.iter()) {
             region.neighbors = hex.neighbors.clone();
+            region.hex_offset_coords = hex.offset;
         }
     }
 

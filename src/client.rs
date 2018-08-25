@@ -97,7 +97,7 @@ impl Periscope {
 				realms,
 				explorer_orders: SelectionStorage::new(),
 				active: InteractiveUi::Explorers,
-				tabs: SelectionStorage::new_from(&vec!["Current Realm".to_string(), "Realm Regions".to_string()])
+				tabs: SelectionStorage::new_from(&vec!["Current Realm".to_string(), "Realms".to_string()])
 			}
 		};
 
@@ -131,7 +131,7 @@ fn send_request(stream: &mut TcpStream, client: ClientId, request: RealmsProtoco
 }
 
 fn handle_response(stream: &mut TcpStream) -> RealmsProtocol {
-	let mut buffer = [0; 2024];
+	let mut buffer = [0; 4096];
     stream.read(&mut buffer).expect("could not read response into buffer.");
     stream.flush().expect("could not flush response stream.");
     let response: RealmsProtocol = deserialize(&buffer).expect("could not deserialize server response");
@@ -155,10 +155,10 @@ fn handle_events(rx: &Receiver<Event>, stream: &mut TcpStream, data: &mut Data) 
 		                    data.active = InteractiveUi::Explorers;
 		                },
 		                1 => {
-		                    data.active = InteractiveUi::Regions;
+		                    data.active = InteractiveUi::Realms;
 		                },
 		                _ => {
-		                    data.active = InteractiveUi::Realms;
+		                    data.active = InteractiveUi::Regions;
 		                }
 		            }
 	    	    },

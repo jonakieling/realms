@@ -56,7 +56,7 @@ impl Universe {
 	    for stream in self.listener.incoming() {
 			let mut stream = stream.expect("could not get tcp stream.");
 			loop {
-			    let mut buffer = [0; 2024];
+			    let mut buffer = [0; 4096];
 
 			    stream.read(&mut buffer).expect("could not read request into buffer.");
 			    stream.flush().expect("could not flush request stream.");
