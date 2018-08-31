@@ -106,14 +106,21 @@ impl Periscope {
 		periscope
 	}
 
-	pub fn run(mut self, terminal: &mut Terminal<RawBackend>, rx: &Receiver<Event>) -> Result<(), io::Error> {
+	pub fn run(mut self, rx: &Receiver<Event>) -> Result<(), io::Error> {
+
+	    // tui terminal
+	    let backend = RawBackend::new().unwrap();
+	    let mut terminal = Terminal::new(backend).unwrap();
+	    terminal.clear().unwrap();
+	    terminal.hide_cursor().unwrap();
+	    
 		loop {
 
 			if !handle_events(rx, &mut self.stream, &mut self.data) {
 				break;
 			}
 
-			draw(terminal, &mut self.data)?;
+			draw(&mut terminal, &mut self.data)?;
 		}
 
 	    terminal.show_cursor().unwrap();

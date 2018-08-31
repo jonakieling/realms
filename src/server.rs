@@ -4,6 +4,10 @@ use std::net::TcpStream;
 use std::net::TcpListener;
 use std::net::Shutdown;
 use std::io::prelude::*;
+use std::thread;
+use std::sync::mpsc;
+use std::sync::mpsc::Receiver;
+use std::sync::mpsc::Sender;
 use std::io;
 
 use bincode::{serialize, deserialize};
@@ -21,10 +25,21 @@ use realms::*;
 use server_dashboard::draw;
 
 pub struct Universe {
-	pub listener: TcpListener,
 	pub realms: Vec<Realm>,
 	pub requests: Vec<(ClientId, RealmsProtocol, DateTime<Local>)>,
 	pub clients: HashMap<Uuid, Client>
+}
+
+pub struct ClientData {
+	pub realms: Vec<Realm>,
+	pub clients: HashMap<Uuid, Client>
+}
+
+#[derive(Debug, Clone)]
+enum UiMessage {
+	Realm(Realm),
+	Request((ClientId, RealmsProtocol, DateTime<Local>)),
+	Client(Client)
 }
 
 #[derive(Debug, Clone)]
@@ -51,63 +66,87 @@ impl Client {
 }
 
 impl Universe {
-	pub fn run(mut self, t: &mut Terminal<RawBackend>) -> Result<(), io::Error> {
-	    draw(t, &self.requests, &self.clients, &self.realms)?;
-	    for stream in self.listener.incoming() {
-			let mut stream = stream.expect("could not get tcp stream.");
-			loop {
-			    let mut buffer = [0; 4096];
+	pub fn run(mut self, host: String) {
 
-			    stream.read(&mut buffer).expect("could not read request into buffer.");
-			    stream.flush().expect("could not flush request stream.");
+	    let (tx, rx): (Sender<UiMessage>, Receiver<UiMessage>) = mpsc::channel();
 
-			    let (client_id, request): (ClientId, RealmsProtocol) = deserialize(&buffer).expect("could not deserialize client request.");
+	    let listener = TcpListener::bind(&host).expect(&format!("could not bind tcp listener to {}", host));
 
-			    // fetch current client if any
-			    let mut current_client: Option<Client> = self.clients.get_mut(&client_id).cloned();
+	    // server thread
+		thread::spawn(move || {
+			// connections and client threads
+			for stream in listener.incoming() {
+				let mut tx_clients = tx.clone();
+				thread::spawn(move || {
+				    let mut client_data = ClientData {
+				    	realms: vec![],
+				    	clients: HashMap::new()
+				    };
 
-			    // seperate client and no-client request handling
-	        	if let Some(mut client) = current_client {
-	        		let response = handle_request(&mut self.requests, &mut self.realms, &mut client, request);
-	        	    send_response(&response, &stream)?;
+					let mut stream = stream.expect("could not get tcp stream.");
+					loop {
+					    let mut buffer = [0; 4096];
 
-	        		let disconnect = !client.connected;
+					    stream.read(&mut buffer).expect("could not read request into buffer.");
+					    stream.flush().expect("could not flush request stream.");
 
-	        		// 'update' client in list
-	        		self.clients.insert(client.id, client);
+					    let (client_id, request): (ClientId, RealmsProtocol) = deserialize(&buffer).expect("could not deserialize client request.");
+					    tx_clients.send(UiMessage::Request((client_id, request.clone(), Local::now())));
+					    // fetch current client if any
+					    let current_client: Option<Client> = client_data.clients.get_mut(&client_id).cloned();
 
-	        	    if disconnect {
-	        	    	// draw update before client exits
-			    		draw(t, &self.requests, &self.clients, &self.realms)?;
-						stream.shutdown(Shutdown::Both).expect("stream could not shut down.");
-	        	    	break;
-	        	    }
-	        	} else {
-	        	    let response = handle_connecting_requests(&mut self.clients, &mut self.requests, request);
-	        	    send_response(&response, &stream)?;
-	        	}
+					    // seperate client and no-client request handling
+			        	if let Some(mut client) = current_client {
+			        		let response = handle_request(&mut tx_clients, &mut client_data.realms, &mut client, request);
+			        	    send_response(&response, &stream);
 
+			        		let disconnect = !client.connected;
 
-	        	// draw dashboard after requests and responses have been handled
-			    draw(t, &self.requests, &self.clients, &self.realms)?;
+			        		// 'update' client in list
+			        		client_data.clients.insert(client.id, client.clone());
+			        		tx_clients.send(UiMessage::Client(client));
+
+			        	    if disconnect {
+								stream.shutdown(Shutdown::Both).expect("stream could not shut down.");
+			        	    	break;
+			        	    }
+			        	} else {
+			        	    let response = handle_connecting_requests(&mut client_data.clients, request);
+			        	    send_response(&response, &stream);
+			        	}
+					}
+				});
+		    }
+		});
+
+	    // tui terminal
+	    let backend = RawBackend::new().unwrap();
+	    let mut terminal = Terminal::new(backend).unwrap();
+	    terminal.clear().unwrap();
+	    terminal.hide_cursor().unwrap();
+		loop {
+		    draw(&mut terminal, &self.requests, &self.clients, &self.realms);
+			let msg = rx.recv().expect("could not receive input event.");
+			match msg {
+			    UiMessage::Client(client) => {
+			    	self.clients.insert(client.id, client);
+			    },
+			    UiMessage::Realm(realm) => self.realms.push(realm),
+			    UiMessage::Request(request) => self.requests.push(request),
 			}
-	    }
-
+		}
 	    // reset terminal before exiting
-	    t.show_cursor().unwrap();
-	    t.clear().unwrap();
-
-	    Ok(())
+	    terminal.show_cursor().unwrap();
+	    terminal.clear().unwrap();
 	}
 }
 
-fn handle_connecting_requests(clients: &mut HashMap<Uuid, Client>, requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)>, request: RealmsProtocol) -> RealmsProtocol {
+fn handle_connecting_requests(clients: &mut HashMap<Uuid, Client>, request: RealmsProtocol) -> RealmsProtocol {
 	match request {
 		// a connect request when the server could not find the id matching client acts as a register request.
         RealmsProtocol::Register | RealmsProtocol::Connect(_) => {
         	let id = Uuid::new_v4();
 			clients.insert(id, Client::new(id));
-    		requests.push((id, request, Local::now()));
 
     		RealmsProtocol::Connect(id)
         },
@@ -117,35 +156,30 @@ fn handle_connecting_requests(clients: &mut HashMap<Uuid, Client>, requests: &mu
 	}
 }
 
-fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)>, realms: &mut Vec<Realm>, client: &mut Client, request: RealmsProtocol) -> RealmsProtocol {
-	let client_id = client.id;
+fn handle_request(tx_clients: &mut Sender<UiMessage>, realms: &mut Vec<Realm>, client: &mut Client, request: RealmsProtocol) -> RealmsProtocol {
 	client.time = Local::now();
 
 	match request {
 		RealmsProtocol::Connect(id) => {
 			client.connected = true;
-    		requests.push((id, request, Local::now()));
 
     		RealmsProtocol::Connect(id)
         },
         RealmsProtocol::RequestRealmsList => {
-    		requests.push((client_id, request, Local::now()));
-
     		RealmsProtocol::RealmsList(client.realms_list.clone())
         },
         RealmsProtocol::RequestNewRealm => {
         	let id = realms.len();
 	        let mut realm = client.realm_variant.create(id);
     		realms.push(realm.clone());
+    		tx_clients.send(UiMessage::Realm(realm.clone()));
     		client.realms_list.insert(realm.id);
-    		requests.push((client_id, request, Local::now()));
 
     		RealmsProtocol::Realm(realm)
         },
         RealmsProtocol::RequestRealm(realm_id) => {
         	if realms.len() > realm_id {
         	    if let Some(realm) = realms.get_mut(realm_id) {
-    				requests.push((client_id, request, Local::now()));
 					RealmsProtocol::Realm(realm.clone())
         	    } else {
 					RealmsProtocol::Void
@@ -155,8 +189,8 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
 	        	let id = realms.len();
 	        	let realm = client.realm_variant.create(id);
 				realms.push(realm.clone());
+    			tx_clients.send(UiMessage::Realm(realm.clone()));
     			client.realms_list.insert(realm.id);
-    			requests.push((client_id, request, Local::now()));
 
 				RealmsProtocol::Realm(realm)
         	}
@@ -180,7 +214,7 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
 	    	    	if realm.done && !done_before {
 	    	    		client.completed_variants.push(client.realm_variant.clone());
 	    	    	}
-	    			requests.push((client_id, request, Local::now()));
+
 					RealmsProtocol::Realm(realm.clone())
 	        	} else {
 					RealmsProtocol::Void
@@ -229,7 +263,7 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
 	    	    	if realm.done && !done_before {
 	    	    		client.completed_variants.push(client.realm_variant.clone());
 	    	    	}
-    		    	requests.push((client_id, RealmsProtocol::Explorer(Move::Action(realm_id, region_id, explorer_id, action)), Local::now()));
+
 					RealmsProtocol::Realm(realm.clone())
 
 	        	} else {
@@ -239,7 +273,7 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
 				RealmsProtocol::Void
     	    }
         },
-        RealmsProtocol::DropEquipment(realm_id, region_id, explorer_id, item) => {
+        RealmsProtocol::DropEquipment(realm_id, _, explorer_id, item) => {
         	// todo: drop item in realm template aswell
 
         	if let Some(region) = realms.get_mut(realm_id).explorer_region(explorer_id) {
@@ -252,8 +286,6 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         	}
 
 			if let Some(mut realm) = realms.get_mut(realm_id) {
-				requests.push((client_id, RealmsProtocol::DropEquipment(realm_id, region_id, explorer_id, item), Local::now()));
-
 				RealmsProtocol::Realm(realm.clone())
 		    } else {
 		    	RealmsProtocol::Void
@@ -272,8 +304,6 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         	}
 
 			if let Some(mut realm) = realms.get_mut(realm_id) {
-				requests.push((client_id, RealmsProtocol::PickEquipment(realm_id, region_id, explorer_id, item), Local::now()));
-
 				RealmsProtocol::Realm(realm.clone())
 		    } else {
 		    	RealmsProtocol::Void
@@ -287,8 +317,6 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         	}
         	
 		    if let Some(mut realm) = realms.get_mut(realm_id) {
-				requests.push((client_id, RealmsProtocol::ForgetParticularity(realm_id, region_id, explorer_id, particularity), Local::now()));
-
 				RealmsProtocol::Realm(realm.clone())
 			} else {
 				RealmsProtocol::Void
@@ -300,15 +328,12 @@ fn handle_request(requests: &mut Vec<(ClientId, RealmsProtocol, DateTime<Local>)
         	}
 
 		    if let Some(mut realm) = realms.get_mut(realm_id) {
-				requests.push((client_id, RealmsProtocol::InvestigateParticularity(realm_id, region_id, explorer_id, item), Local::now()));
-
 				RealmsProtocol::Realm(realm.clone())
 			} else {
 				RealmsProtocol::Void
     	    }
         },
         RealmsProtocol::Quit => {
-			requests.push((client_id, request, Local::now()));
 	    	client.connected = false;
 
 			RealmsProtocol::Quit

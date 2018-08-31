@@ -22,10 +22,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time;
 use std::net::TcpStream;
-use std::net::TcpListener;
 
-use tui::Terminal;
-use tui::backend::RawBackend;
 use termion::event;
 use termion::input::TermRead;
 
@@ -66,12 +63,6 @@ fn main() {
     	host = &args[2];
 	}
 
-    // tui terminal
-    let backend = RawBackend::new().unwrap();
-    let mut terminal = Terminal::new(backend).unwrap();
-    terminal.clear().unwrap();
-    terminal.hide_cursor().unwrap();
-
 	match mode {
 	    Mode::Client => {
 
@@ -102,13 +93,12 @@ fn main() {
 
 	    	if let Ok(stream) = TcpStream::connect(host) {
 	    		let periscope = client::Periscope::new(stream);
-		 		periscope.run(&mut terminal, &rx).expect("io error");
+		 		periscope.run(&rx).expect("io error");
 			}
 	    },
 	    Mode::Server => {
-			let listener = TcpListener::bind(host).expect(&format!("could not bind tcp listener to {}", host));
-    		let universe = server::Universe { listener, realms: vec![], requests: vec![], clients: HashMap::new() };
-	    	universe.run(&mut terminal).expect("io error");
+    		let universe = server::Universe { realms: vec![], requests: vec![], clients: HashMap::new() };
+	    	universe.run(host.to_string());
 	    }
 	}
 }
