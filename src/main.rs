@@ -48,8 +48,6 @@ pub enum Event {
 fn main() {
 	let args: Vec<String> = env::args().collect();
 
-
-	// uberspace: j0na.net:64245
 	let mut mode = Mode::Client;
 	let mut host = "127.0.0.1:8080";
 	if args.len() >= 2 && &args[1] == "server" {
