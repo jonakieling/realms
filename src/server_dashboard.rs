@@ -1,4 +1,5 @@
 
+use realms::RealmStrategy;
 use uuid::Uuid;
 use std::collections::HashMap;
 use server::Client;
@@ -16,7 +17,7 @@ use tui::style::{Style, Color};
 
 use tokens::*;
 
-pub fn draw(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtocol, DateTime<Local>)>, clients: &HashMap<Uuid, Client>, realms: &Vec<Realm>) -> Result<(), io::Error> {
+pub fn draw(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtocol, DateTime<Local>)>, clients: &HashMap<Uuid, Client>, realms: &Vec<RealmStrategy>) -> Result<(), io::Error> {
 	let t_size = t.size().unwrap();
 
 	Group::default()
@@ -82,7 +83,7 @@ pub fn draw(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtoc
                 .render(t, &chunks[1]);
 
 
-        	let realms = realms.iter().rev().map(|realm| {
+        	let realms = realms.iter().rev().map(|RealmStrategy {variant, view: realm, template}| {
         		match realm.done {
         		    true => {
         		    	Row::StyledData(

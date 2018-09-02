@@ -10,7 +10,7 @@ use hex::*;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RealmVariant {
-	Tutorial(RealmTemplate),
+	Tutorial,
 	// PrologueTheQueen(RealmTemplate)
 }
 
@@ -20,17 +20,11 @@ pub struct RealmTemplate {
     pub explorers: Vec<Explorer>
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum RealmTemplateVariant {
-    Tutorial,
-    // PrologueTheQueen
-}
-
 // todo: consider renaming this to Realm and the current Realm to RealmView
 impl RealmTemplate {
-    pub fn new(variant: RealmTemplateVariant) -> RealmTemplate {
+    pub fn new(variant: RealmVariant) -> RealmTemplate {
         match variant {
-            RealmTemplateVariant::Tutorial => RealmTemplate {
+            RealmVariant::Tutorial => RealmTemplate {
                 regions: tutorial_regions(),
                 explorers: tutorial_explorers()
             }
@@ -39,55 +33,57 @@ impl RealmTemplate {
     }
 }
 
-pub trait RealmStrategy {
-    fn create(&self, id: usize) -> Realm;
-    fn state(&self, realm: &mut Realm);
-    fn valid_move(&self, realm: &Realm, explorer: ExplorerId, region: RegionId) -> bool;
-    fn valid_action(&self, realm: &Realm, explorer: ExplorerId, region: RegionId, action: &ExplorerAction) -> bool;
+pub struct RealmStrategy {
+    pub variant: RealmVariant,
+    pub view: Realm,
+    pub template: RealmTemplate
 }
 
-impl RealmStrategy for RealmVariant {
-    fn create(&self, id: usize) -> Realm {
-        match self {
-            RealmVariant::Tutorial(template) => { realm_tutorial(id, template) }
+impl RealmStrategy {
+    pub fn new(id: usize, variant: RealmVariant) -> RealmStrategy {
+        match variant {
+            RealmVariant::Tutorial => {
+                let template = RealmTemplate::new(variant.clone());
+                RealmStrategy { variant: variant.clone(), view: realm_tutorial(id, &template), template }
+            }
         }
     }
 
-    fn state(&self, realm: &mut Realm) {
-        match self {
-            RealmVariant::Tutorial(template) => {
+    pub fn state(&mut self) {
+        match self.variant {
+            RealmVariant::Tutorial => {
 
-                for (_, region) in realm.island.regions.iter_mut() {
+                for (_, region) in self.view.island.regions.iter_mut() {
                     region.resources = 0;
                     region.buildings = SelectionStorage::new();
                     region.particularities = SelectionStorage::new();
                     region.sight = RegionVisibility::None;
                 }
                 
-                for (_, region) in template.regions.iter() {
+                for (_, region) in self.template.regions.iter() {
                     if region.mapped {
                         let mut region = region.clone();
                         region.sight = RegionVisibility::Partial;
-                        realm.island.regions.insert(region.id, region.clone());
+                        self.view.island.regions.insert(region.id, region.clone());
                     }
                 }
 
                 let mut embarked = 0;
-                for explorer in realm.expedition.explorers.iter() {
+                for explorer in self.view.expedition.explorers.iter() {
                     if let Some(explorer_region) = explorer.region {
-                        if let Some(explorer_region) = template.regions.storage().get(&explorer_region) {
+                        if let Some(explorer_region) = self.template.regions.storage().get(&explorer_region) {
                             
                             for neighbor in &explorer_region.neighbors {
-                                if let Some(region) = template.regions.storage().get(&neighbor).clone() {
+                                if let Some(region) = self.template.regions.storage().get(&neighbor).clone() {
                                     let mut region = region.clone();
                                     region.sight = RegionVisibility::Partial;
-                                    realm.island.regions.insert(region.id, region);
+                                    self.view.island.regions.insert(region.id, region);
                                 }
                             }
 
                             let mut region = explorer_region.clone();
                             region.sight = RegionVisibility::Live;
-                            realm.island.regions.insert(region.id, region);
+                            self.view.island.regions.insert(region.id, region);
                         }
                     }
                     if explorer.region.is_some() {
@@ -95,12 +91,12 @@ impl RealmStrategy for RealmVariant {
                     }
                 }
 
-                if embarked == realm.expedition.explorers.iter().len() {
-                    realm.completed.push(RealmObjective::EmbarkExplorers);
-                    realm.story = "all explorers have embarked. you can keep playing around.".to_string();
-                    realm.done = true;
+                if embarked == self.view.expedition.explorers.iter().len() {
+                    self.view.completed.push(RealmObjective::EmbarkExplorers);
+                    self.view.story = "all explorers have embarked. you can keep playing around.".to_string();
+                    self.view.done = true;
                 }
-                realm.age += 1;
+                self.view.age += 1;
 
                 // todo regions (and possibly anything with an id) set and get by id
                 // unique with simple eq does not remove correct values necessarily.
@@ -109,18 +105,18 @@ impl RealmStrategy for RealmVariant {
         }
     }  
 
-    fn valid_move(&self, _realm: &Realm, _explorer: ExplorerId, _region: RegionId) -> bool {
-        match self {
-            RealmVariant::Tutorial(_template) => {
+    pub fn valid_move(&self, _explorer: ExplorerId, _region: RegionId) -> bool {
+        match self.variant {
+            RealmVariant::Tutorial => {
                 // no movement restrictions for tutorial
                 true
             }
         }
     }
 
-    fn valid_action(&self, _realm: &Realm, _explorer: ExplorerId, _region: RegionId, _action: &ExplorerAction) -> bool {
-        match self {
-            RealmVariant::Tutorial(_template) => {
+    pub fn valid_action(&self, _explorer: ExplorerId, _region: RegionId, _action: &ExplorerAction) -> bool {
+        match self.variant {
+            RealmVariant::Tutorial => {
                 // no restrictions on actions for tutorial
                 true
             }
