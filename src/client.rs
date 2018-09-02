@@ -316,6 +316,7 @@ fn handle_explorer_move_events(stream: &mut TcpStream, data: &mut Data, key: eve
 		},
 		event::Key::Backspace => {
 	    	data.active = InteractiveUi::ExplorerOrders;
+			update_explorer_available_orders(data);
 		},
 		event::Key::Char('\n') => {
     		{
@@ -343,6 +344,7 @@ fn handle_explorer_actions_events(stream: &mut TcpStream, data: &mut Data, key: 
 		},
 		event::Key::Backspace => {
 	    	data.active = InteractiveUi::ExplorerOrders;
+			update_explorer_available_orders(data);
 		},
 		event::Key::Char('\n') => {
     		{
@@ -382,6 +384,7 @@ fn handle_explorer_inventory_events(stream: &mut TcpStream, data: &mut Data, key
 		},
 		event::Key::Backspace => {
 	    	data.active = InteractiveUi::ExplorerOrders;
+			update_explorer_available_orders(data);
 		},
 		_ => { }
 	}
