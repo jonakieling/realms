@@ -17,7 +17,6 @@ extern crate uuid;
 
 use std::env;
 use std::io;
-use std::collections::HashMap;
 use std::sync::mpsc;
 use std::thread;
 use std::time;
@@ -66,7 +65,6 @@ fn main() {
 	match mode {
 	    Mode::Client => {
 
-			// inter process communication
 		    let (tx, rx) = mpsc::channel();
 			let input_tx = tx.clone();
 
@@ -97,8 +95,7 @@ fn main() {
 			}
 	    },
 	    Mode::Server => {
-    		let universe = server::Universe { realms: vec![], requests: vec![], clients: HashMap::new() };
-	    	universe.run(host.to_string());
+	    	server::run(host.to_string());
 	    }
 	}
 }

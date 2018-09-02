@@ -5,9 +5,7 @@ use std::net::TcpListener;
 use std::net::Shutdown;
 use std::io::prelude::*;
 use std::thread;
-use std::sync::mpsc;
-use std::sync::mpsc::Receiver;
-use std::sync::mpsc::Sender;
+use std::sync::{Mutex, Arc, mpsc};
 use std::io;
 
 use bincode::{serialize, deserialize};
@@ -22,24 +20,12 @@ use uuid::Uuid;
 use tokens::*;
 use utility::*;
 use realms::*;
-use server_dashboard::draw;
+use server_dashboard::*;
 
 pub struct Universe {
 	pub realms: Vec<Realm>,
-	pub requests: Vec<(ClientId, RealmsProtocol, DateTime<Local>)>,
-	pub clients: HashMap<Uuid, Client>
-}
-
-pub struct ClientData {
-	pub realms: Vec<Realm>,
-	pub clients: HashMap<Uuid, Client>
-}
-
-#[derive(Debug, Clone)]
-enum UiMessage {
-	Realm(Realm),
-	Request((ClientId, RealmsProtocol, DateTime<Local>)),
-	Client(Client)
+	pub clients: HashMap<Uuid, Client>,
+	pub requests: Vec<(ClientId, RealmsProtocol, DateTime<Local>)>
 }
 
 #[derive(Debug, Clone)]
@@ -65,79 +51,78 @@ impl Client {
 	}
 }
 
-impl Universe {
-	pub fn run(mut self, host: String) {
+pub fn run(host: String) {
+	// channel to notify ui to update
+    let (tx, rx) = mpsc::channel();
+    // global state of all games and clients
+	let universe = Arc::new(Mutex::new(Universe { realms: vec![], clients: HashMap::new(), requests: vec![] }));
+    // getting arc of universe for this thread (ui) before moved to server thread
+    let ui_glimpse = Arc::clone(&universe);
 
-	    let (tx, rx): (Sender<UiMessage>, Receiver<UiMessage>) = mpsc::channel();
+    let listener = TcpListener::bind(&host).expect(&format!("could not bind tcp listener to {}", host));
+    // server thread
+	let _server = thread::spawn(move || {
+		// client threads
+		for stream in listener.incoming() {
+		    let mut glimpse = Arc::clone(&universe);
+		    let client_tx = tx.clone();
+			thread::spawn(move || {
 
-	    let listener = TcpListener::bind(&host).expect(&format!("could not bind tcp listener to {}", host));
+				let mut stream = stream.expect("could not get tcp stream.");
+				loop {
+				    let mut buffer = [0; 4096];
 
-	    // server thread
-		thread::spawn(move || {
-			// connections and client threads
-			for stream in listener.incoming() {
-				let mut tx_clients = tx.clone();
-				thread::spawn(move || {
-				    let mut client_data = ClientData {
-				    	realms: vec![],
-				    	clients: HashMap::new()
-				    };
+				    stream.read(&mut buffer).expect("could not read request into buffer.");
+				    stream.flush().expect("could not flush request stream.");
 
-					let mut stream = stream.expect("could not get tcp stream.");
-					loop {
-					    let mut buffer = [0; 4096];
+				    let (client_id, request): (ClientId, RealmsProtocol) = deserialize(&buffer).expect("could not deserialize client request.");
 
-					    stream.read(&mut buffer).expect("could not read request into buffer.");
-					    stream.flush().expect("could not flush request stream.");
+				    let mut lock_glimpse = glimpse.lock().unwrap();
 
-					    let (client_id, request): (ClientId, RealmsProtocol) = deserialize(&buffer).expect("could not deserialize client request.");
-					    tx_clients.send(UiMessage::Request((client_id, request.clone(), Local::now())));
-					    // fetch current client if any
-					    let current_client: Option<Client> = client_data.clients.get_mut(&client_id).cloned();
+				    // fetch current client if any
+				    let current_client: Option<Client> = lock_glimpse.clients.get_mut(&client_id).cloned();
 
-					    // seperate client and no-client request handling
-			        	if let Some(mut client) = current_client {
-			        		let response = handle_request(&mut tx_clients, &mut client_data.realms, &mut client, request);
-			        	    send_response(&response, &stream);
+				    // seperate client and no-client request handling
+		        	if let Some(mut client) = current_client {
+		        		let response = handle_request(&mut lock_glimpse.realms, &mut client, request.clone());
+		        	    send_response(&response, &stream).expect("sending response failed.");
 
-			        		let disconnect = !client.connected;
+		        		let disconnect = !client.connected;
 
-			        		// 'update' client in list
-			        		client_data.clients.insert(client.id, client.clone());
-			        		tx_clients.send(UiMessage::Client(client));
+		        		// log request
+				    	lock_glimpse.requests.push((client.id, request, Local::now()));
+		        		// update client in list
+		        		lock_glimpse.clients.insert(client.id, client.clone());
+		        		
+		        	    if disconnect {
+							stream.shutdown(Shutdown::Both).expect("stream could not shut down.");
+				    		client_tx.send(Some(0)).unwrap();
+		        	    	break;
+		        	    }
+		        	} else {
+		        	    let response = handle_connecting_requests(&mut lock_glimpse.clients, request);
+		        	    send_response(&response, &stream).expect("sending response failed.");
+		        	}
 
-			        	    if disconnect {
-								stream.shutdown(Shutdown::Both).expect("stream could not shut down.");
-			        	    	break;
-			        	    }
-			        	} else {
-			        	    let response = handle_connecting_requests(&mut client_data.clients, request);
-			        	    send_response(&response, &stream);
-			        	}
-					}
-				});
-		    }
-		});
+				    client_tx.send(Some(1)).unwrap();
+				}
+			});
+	    }
+	});
 
-	    // tui terminal
-	    let backend = RawBackend::new().unwrap();
-	    let mut terminal = Terminal::new(backend).unwrap();
-	    terminal.clear().unwrap();
-	    terminal.hide_cursor().unwrap();
-		loop {
-		    draw(&mut terminal, &self.requests, &self.clients, &self.realms);
-			let msg = rx.recv().expect("could not receive input event.");
-			match msg {
-			    UiMessage::Client(client) => {
-			    	self.clients.insert(client.id, client);
-			    },
-			    UiMessage::Realm(realm) => self.realms.push(realm),
-			    UiMessage::Request(request) => self.requests.push(request),
-			}
-		}
-	    // reset terminal before exiting
-	    terminal.show_cursor().unwrap();
-	    terminal.clear().unwrap();
+    // tui terminal
+    let backend = RawBackend::new().unwrap();
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal.clear().unwrap();
+    terminal.hide_cursor().unwrap();
+    {
+		let lock_glimpse = ui_glimpse.lock().unwrap();
+		draw(&mut terminal, &lock_glimpse.requests, &lock_glimpse.clients, &lock_glimpse.realms).expect("ui could not be drawn.");
+    }
+	loop {
+		let _request = rx.recv().unwrap();
+		let lock_glimpse = ui_glimpse.lock().unwrap();
+		draw(&mut terminal, &lock_glimpse.requests, &lock_glimpse.clients, &lock_glimpse.realms).expect("ui could not be drawn.");
 	}
 }
 
@@ -156,7 +141,7 @@ fn handle_connecting_requests(clients: &mut HashMap<Uuid, Client>, request: Real
 	}
 }
 
-fn handle_request(tx_clients: &mut Sender<UiMessage>, realms: &mut Vec<Realm>, client: &mut Client, request: RealmsProtocol) -> RealmsProtocol {
+fn handle_request(realms: &mut Vec<Realm>, client: &mut Client, request: RealmsProtocol) -> RealmsProtocol {
 	client.time = Local::now();
 
 	match request {
@@ -172,7 +157,6 @@ fn handle_request(tx_clients: &mut Sender<UiMessage>, realms: &mut Vec<Realm>, c
         	let id = realms.len();
 	        let mut realm = client.realm_variant.create(id);
     		realms.push(realm.clone());
-    		tx_clients.send(UiMessage::Realm(realm.clone()));
     		client.realms_list.insert(realm.id);
 
     		RealmsProtocol::Realm(realm)
@@ -189,7 +173,6 @@ fn handle_request(tx_clients: &mut Sender<UiMessage>, realms: &mut Vec<Realm>, c
 	        	let id = realms.len();
 	        	let realm = client.realm_variant.create(id);
 				realms.push(realm.clone());
-    			tx_clients.send(UiMessage::Realm(realm.clone()));
     			client.realms_list.insert(realm.id);
 
 				RealmsProtocol::Realm(realm)

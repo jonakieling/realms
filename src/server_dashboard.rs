@@ -52,7 +52,7 @@ pub fn draw(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtoc
             });
 
             Table::new(
-                ["idx", "request", "time"].into_iter(),
+                ["cId", "request", "time"].into_iter(),
                 requests
             ).block(Block::default().title("Requests").borders(Borders::ALL))
                 .header_style(Style::default().fg(Color::Yellow))
@@ -74,7 +74,7 @@ pub fn draw(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtoc
             });
 
             Table::new(
-                ["idx", "uuid", "realms", "time"].into_iter(),
+                ["cId", "uuid", "realms", "time"].into_iter(),
                 clients
             ).block(Block::default().title("Clients").borders(Borders::ALL))
                 .header_style(Style::default().fg(Color::Yellow))
@@ -101,7 +101,7 @@ pub fn draw(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtoc
             });
 
             Table::new(
-                ["idx", "age", "title"].into_iter(),
+                ["rId", "age", "title"].into_iter(),
                 realms
             ).block(Block::default().title("Realm").borders(Borders::ALL))
                 .header_style(Style::default().fg(Color::Yellow))
