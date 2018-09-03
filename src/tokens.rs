@@ -84,7 +84,7 @@ pub trait LazyRealmAccess<'a> {
 impl<'a> LazyRealmAccess<'a> for Option<&'a mut RealmStrategy> {
     fn explorer(&'a mut self, explorer: ExplorerId) -> Option<&'a mut Explorer> {
         match self {
-            Some(RealmStrategy {variant, view: realm, template}) => {
+            Some(RealmStrategy {variant, realm, template}) => {
                 realm.expedition.explorers.storage_mut().get_mut(explorer)
             },
             None => None,
@@ -93,7 +93,7 @@ impl<'a> LazyRealmAccess<'a> for Option<&'a mut RealmStrategy> {
 
     fn region_explorer(&'a mut self, region: RegionId, explorer: ExplorerId) -> Option<&'a mut Explorer> {
         match self {
-            Some(RealmStrategy {variant, view: realm, template}) => {
+            Some(RealmStrategy {variant, realm, template}) => {
                 if let Some(explorer) = realm.expedition.explorers.storage_mut().get_mut(explorer) {
                     if let Some(explorer_region) = explorer.region {
                         if region == explorer_region {
@@ -114,7 +114,7 @@ impl<'a> LazyRealmAccess<'a> for Option<&'a mut RealmStrategy> {
 
     fn explorer_region(&'a mut self, explorer: ExplorerId) -> Option<&'a mut Region> {
         match self {
-            Some(RealmStrategy {variant, view: realm, template}) => {
+            Some(RealmStrategy {variant, realm, template}) => {
                 if let Some(explorer) = realm.expedition.explorers.storage_mut().get_mut(explorer) {
                     if let Some(region) = explorer.region {
                         realm.island.regions.storage_mut().get_mut(&region)
@@ -131,7 +131,7 @@ impl<'a> LazyRealmAccess<'a> for Option<&'a mut RealmStrategy> {
 
     fn region(&'a mut self, region: RegionId) -> Option<&'a mut Region> {
         match self {
-            Some(RealmStrategy {variant, view: realm, template}) => {
+            Some(RealmStrategy {variant, realm, template}) => {
                 realm.island.regions.storage_mut().get_mut(&region)
             },
             None => None,

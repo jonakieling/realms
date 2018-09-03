@@ -139,7 +139,7 @@ fn handle_connecting_requests(clients: &mut HashMap<Uuid, Client>, request: Real
 	}
 }
 
-fn handle_request(realms: &mut Vec<RealmStrategy>, client: &mut Client, request: RealmsProtocol) -> RealmsProtocol {
+fn handle_request(realm_strategies: &mut Vec<RealmStrategy>, client: &mut Client, request: RealmsProtocol) -> RealmsProtocol {
 	client.time = Local::now();
 
 	match request {
@@ -152,53 +152,53 @@ fn handle_request(realms: &mut Vec<RealmStrategy>, client: &mut Client, request:
     		RealmsProtocol::RealmsList(client.realms_list.clone())
         },
         RealmsProtocol::RequestNewRealm => {
-        	let id = realms.len();
-	        let mut realm = RealmStrategy::new(id, RealmVariant::Tutorial);
-	        let view = realm.view.clone();
-	        let realm_id = realm.view.id;
-    		realms.push(realm);
+        	let id = realm_strategies.len();
+	        let mut strategy = RealmStrategy::new(id, RealmVariant::Tutorial);
+	        let realm = strategy.realm.clone();
+	        let realm_id = strategy.realm.id;
+    		realm_strategies.push(strategy);
     		client.realms_list.insert(realm_id);
-    		RealmsProtocol::Realm(view)
+    		RealmsProtocol::Realm(realm)
         },
         RealmsProtocol::RequestRealm(realm_id) => {
-        	if realms.len() > realm_id {
-        	    if let Some(RealmStrategy {variant: _, view: realm, template: _}) = realms.get_mut(realm_id) {
+        	if realm_strategies.len() > realm_id {
+        	    if let Some(RealmStrategy {variant: _, realm, template: _}) = realm_strategies.get_mut(realm_id) {
 					RealmsProtocol::Realm(realm.clone())
         	    } else {
 					RealmsProtocol::Void
         	    }
         	} else {
         		// send new realm on miss
-	        	let id = realms.len();
-		        let mut realm = RealmStrategy::new(id, RealmVariant::Tutorial);
-		        let view = realm.view.clone();
-		        let realm_id = realm.view.id;
-	    		realms.push(realm);
+	        	let id = realm_strategies.len();
+		        let mut strategy = RealmStrategy::new(id, RealmVariant::Tutorial);
+		        let realm = strategy.realm.clone();
+		        let realm_id = strategy.realm.id;
+	    		realm_strategies.push(strategy);
 	    		client.realms_list.insert(realm_id);
-	    		RealmsProtocol::Realm(view)
+	    		RealmsProtocol::Realm(realm)
         	}
         },
         RealmsProtocol::Explorer(Move::ChangeRegion(realm_id, region_id, explorer_id)) => {
         	// todo: check consequences of move for realm template
 
         	let mut valid_move = false;
-        	if let Some(strategy) = realms.get(realm_id) {
+        	if let Some(strategy) = realm_strategies.get(realm_id) {
         	    valid_move = strategy.valid_move(explorer_id, region_id);
         	}
 
         	if valid_move {
-	        	if let Some(explorer) = realms.get_mut(realm_id).explorer(explorer_id) {
+	        	if let Some(explorer) = realm_strategies.get_mut(realm_id).explorer(explorer_id) {
 	    	    	explorer.region = Some(region_id);
 	        	}
 
-	        	if let Some(strategy) = realms.get_mut(realm_id) {
-	        		let done_before = strategy.view.done;
+	        	if let Some(strategy) = realm_strategies.get_mut(realm_id) {
+	        		let done_before = strategy.realm.done;
 	    	    	strategy.state();
-	    	    	if strategy.view.done && !done_before {
+	    	    	if strategy.realm.done && !done_before {
 	    	    		client.completed_variants.push(strategy.variant.clone());
 	    	    	}
 
-					RealmsProtocol::Realm(strategy.view.clone())
+					RealmsProtocol::Realm(strategy.realm.clone())
 	        	} else {
 					RealmsProtocol::Void
 	    	    }
@@ -211,13 +211,13 @@ fn handle_request(realms: &mut Vec<RealmStrategy>, client: &mut Client, request:
         	// or only in template and let client side realm be filled by state update
 
         	let mut valid_action = false;
-        	if let Some(realm) = realms.get(realm_id) {
-        	    valid_action = realm.valid_action(explorer_id, region_id, &action);
+        	if let Some(strategy) = realm_strategies.get(realm_id) {
+        	    valid_action = strategy.valid_action(explorer_id, region_id, &action);
         	}
 
-			valid_action &= realms.get_mut(realm_id).region_explorer(region_id, explorer_id).is_some();
+			valid_action &= realm_strategies.get_mut(realm_id).region_explorer(region_id, explorer_id).is_some();
 			let mut region_to_update: Option<Region> = None;
-			if let Some(mut region) = realms.get_mut(realm_id).region(region_id) {
+			if let Some(mut region) = realm_strategies.get_mut(realm_id).region(region_id) {
 			    if valid_action {
     				match action {
     				    ExplorerAction::Build => {
@@ -240,23 +240,23 @@ fn handle_request(realms: &mut Vec<RealmStrategy>, client: &mut Client, request:
     	    	}
 			}
 
-        	if let Some(realm) = realms.get_mut(realm_id) {
+        	if let Some(strategy) = realm_strategies.get_mut(realm_id) {
         		if valid_action {
         			if let Some(region) = region_to_update {
-						realm.template.regions.insert(region.id, region);
+						strategy.template.regions.insert(region.id, region);
         			}
         		}
         	}
 
-			if let Some(strategy) = realms.get_mut(realm_id) {
+			if let Some(strategy) = realm_strategies.get_mut(realm_id) {
 	        	if valid_action {
-	        		let done_before = strategy.view.done;
+	        		let done_before = strategy.realm.done;
 	    	    	strategy.state();
-	    	    	if strategy.view.done && !done_before {
+	    	    	if strategy.realm.done && !done_before {
 	    	    		client.completed_variants.push(strategy.variant.clone());
 	    	    	}
 
-					RealmsProtocol::Realm(strategy.view.clone())
+					RealmsProtocol::Realm(strategy.realm.clone())
 
 	        	} else {
 					RealmsProtocol::Void
@@ -268,16 +268,16 @@ fn handle_request(realms: &mut Vec<RealmStrategy>, client: &mut Client, request:
         RealmsProtocol::DropEquipment(realm_id, _, explorer_id, item) => {
         	// todo: drop item in realm template aswell
 
-        	if let Some(region) = realms.get_mut(realm_id).explorer_region(explorer_id) {
+        	if let Some(region) = realm_strategies.get_mut(realm_id).explorer_region(explorer_id) {
         	    region.particularities.insert(Particularity::Item(item));
         	}
-        	if let Some(explorer) = realms.get_mut(realm_id).explorer(explorer_id) {
+        	if let Some(explorer) = realm_strategies.get_mut(realm_id).explorer(explorer_id) {
         	    explorer.inventory.storage_mut().iter().position(move |ref n| **n == ExplorerItem::Equipment(item)).map(|equipment| {
     				explorer.inventory.storage_mut().remove(equipment);
         		});
         	}
 
-			if let Some(RealmStrategy {variant: _, view: ref mut realm, template: _}) = realms.get_mut(realm_id) {
+			if let Some(RealmStrategy {variant: _, ref mut realm, template: _}) = realm_strategies.get_mut(realm_id) {
 				RealmsProtocol::Realm(realm.clone())
 		    } else {
 		    	RealmsProtocol::Void
@@ -286,40 +286,40 @@ fn handle_request(realms: &mut Vec<RealmStrategy>, client: &mut Client, request:
         RealmsProtocol::PickEquipment(realm_id, region_id, explorer_id, item) => {
         	// todo: pick item in realm template aswell
 
-        	if let Some(region) = realms.get_mut(realm_id).explorer_region(explorer_id) {
+        	if let Some(region) = realm_strategies.get_mut(realm_id).explorer_region(explorer_id) {
         		region.particularities.storage_mut().iter().position(move |ref n| **n == Particularity::Item(item)).map(|equipment| {
     				region.particularities.storage_mut().remove(equipment);
         		});
         	}
-        	if let Some(explorer) = realms.get_mut(realm_id).region_explorer(region_id, explorer_id) {
+        	if let Some(explorer) = realm_strategies.get_mut(realm_id).region_explorer(region_id, explorer_id) {
         	    explorer.inventory.insert(ExplorerItem::Equipment(item));
         	}
 
-			if let Some(RealmStrategy {variant: _, view: ref mut realm, template: _}) = realms.get_mut(realm_id) {
+			if let Some(RealmStrategy {variant: _, ref mut realm, template: _}) = realm_strategies.get_mut(realm_id) {
 				RealmsProtocol::Realm(realm.clone())
 		    } else {
 		    	RealmsProtocol::Void
 		    }
         },
         RealmsProtocol::ForgetParticularity(realm_id, region_id, explorer_id, particularity) => {
-		    if let Some(explorer) = realms.get_mut(realm_id).explorer(explorer_id) {
+		    if let Some(explorer) = realm_strategies.get_mut(realm_id).explorer(explorer_id) {
         	    explorer.inventory.storage_mut().iter().position(move |ref n| **n == ExplorerItem::Particularity(region_id, particularity)).map(|equipment| {
     				explorer.inventory.storage_mut().remove(equipment);
         		});
         	}
         	
-		    if let Some(RealmStrategy {variant: _, view: ref mut realm, template: _}) = realms.get_mut(realm_id) {
+		    if let Some(RealmStrategy {variant: _, ref mut realm, template: _}) = realm_strategies.get_mut(realm_id) {
 				RealmsProtocol::Realm(realm.clone())
 			} else {
 				RealmsProtocol::Void
     	    }
         },
         RealmsProtocol::InvestigateParticularity(realm_id, region_id, explorer_id, item) => {
-        	if let Some(explorer) = realms.get_mut(realm_id).region_explorer(region_id, explorer_id) {
+        	if let Some(explorer) = realm_strategies.get_mut(realm_id).region_explorer(region_id, explorer_id) {
         	    explorer.inventory.insert(ExplorerItem::Particularity(region_id, item));
         	}
 
-		    if let Some(RealmStrategy {variant: _, view: ref mut realm, template: _}) = realms.get_mut(realm_id) {
+		    if let Some(RealmStrategy {variant: _, ref mut realm, template: _}) = realm_strategies.get_mut(realm_id) {
 				RealmsProtocol::Realm(realm.clone())
 			} else {
 				RealmsProtocol::Void

@@ -83,7 +83,7 @@ pub fn draw(t: &mut Terminal<RawBackend>, requests: &Vec<(ClientId, RealmsProtoc
                 .render(t, &chunks[1]);
 
 
-        	let realms = realms.iter().rev().map(|RealmStrategy {variant, view: realm, template}| {
+        	let realms = realms.iter().rev().map(|RealmStrategy {variant: _, realm, template: _}| {
         		match realm.done {
         		    true => {
         		    	Row::StyledData(

@@ -20,7 +20,6 @@ pub struct RealmTemplate {
     pub explorers: Vec<Explorer>
 }
 
-// todo: consider renaming this to Realm and the current Realm to RealmView
 impl RealmTemplate {
     pub fn new(variant: RealmVariant) -> RealmTemplate {
         match variant {
@@ -35,7 +34,7 @@ impl RealmTemplate {
 
 pub struct RealmStrategy {
     pub variant: RealmVariant,
-    pub view: Realm,
+    pub realm: Realm,
     pub template: RealmTemplate
 }
 
@@ -44,7 +43,7 @@ impl RealmStrategy {
         match variant {
             RealmVariant::Tutorial => {
                 let template = RealmTemplate::new(variant.clone());
-                RealmStrategy { variant: variant.clone(), view: realm_tutorial(id, &template), template }
+                RealmStrategy { variant: variant.clone(), realm: realm_tutorial(id, &template), template }
             }
         }
     }
@@ -53,7 +52,7 @@ impl RealmStrategy {
         match self.variant {
             RealmVariant::Tutorial => {
 
-                for (_, region) in self.view.island.regions.iter_mut() {
+                for (_, region) in self.realm.island.regions.iter_mut() {
                     region.resources = 0;
                     region.buildings = SelectionStorage::new();
                     region.particularities = SelectionStorage::new();
@@ -64,12 +63,12 @@ impl RealmStrategy {
                     if region.mapped {
                         let mut region = region.clone();
                         region.sight = RegionVisibility::Partial;
-                        self.view.island.regions.insert(region.id, region.clone());
+                        self.realm.island.regions.insert(region.id, region.clone());
                     }
                 }
 
                 let mut embarked = 0;
-                for explorer in self.view.expedition.explorers.iter() {
+                for explorer in self.realm.expedition.explorers.iter() {
                     if let Some(explorer_region) = explorer.region {
                         if let Some(explorer_region) = self.template.regions.storage().get(&explorer_region) {
                             
@@ -77,13 +76,13 @@ impl RealmStrategy {
                                 if let Some(region) = self.template.regions.storage().get(&neighbor).clone() {
                                     let mut region = region.clone();
                                     region.sight = RegionVisibility::Partial;
-                                    self.view.island.regions.insert(region.id, region);
+                                    self.realm.island.regions.insert(region.id, region);
                                 }
                             }
 
                             let mut region = explorer_region.clone();
                             region.sight = RegionVisibility::Live;
-                            self.view.island.regions.insert(region.id, region);
+                            self.realm.island.regions.insert(region.id, region);
                         }
                     }
                     if explorer.region.is_some() {
@@ -91,16 +90,12 @@ impl RealmStrategy {
                     }
                 }
 
-                if embarked == self.view.expedition.explorers.iter().len() {
-                    self.view.completed.push(RealmObjective::EmbarkExplorers);
-                    self.view.story = "all explorers have embarked. you can keep playing around.".to_string();
-                    self.view.done = true;
+                if embarked == self.realm.expedition.explorers.iter().len() {
+                    self.realm.completed.push(RealmObjective::EmbarkExplorers);
+                    self.realm.story = "all explorers have embarked. you can keep playing around.".to_string();
+                    self.realm.done = true;
                 }
-                self.view.age += 1;
-
-                // todo regions (and possibly anything with an id) set and get by id
-                // unique with simple eq does not remove correct values necessarily.
-                // realm.island.regions.iter().unique();
+                self.realm.age += 1;
             }
         }
     }  
