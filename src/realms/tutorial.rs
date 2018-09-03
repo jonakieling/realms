@@ -16,6 +16,76 @@ pub fn new(id: RealmId) -> RealmStrategy {
     RealmStrategy { variant: RealmVariant::Tutorial, realm: realm(id, &template), template }
 }
 
+pub fn state(strategy: &mut RealmStrategy) {
+    match strategy.variant {
+        RealmVariant::Tutorial => {
+
+            for (_, region) in strategy.realm.island.regions.iter_mut() {
+                region.resources = 0;
+                region.buildings = SelectionStorage::new();
+                region.particularities = SelectionStorage::new();
+                region.sight = RegionVisibility::None;
+            }
+            
+            for (_, region) in strategy.template.regions.iter() {
+                if region.mapped {
+                    let mut region = region.clone();
+                    region.sight = RegionVisibility::Partial;
+                    strategy.realm.island.regions.insert(region.id, region.clone());
+                }
+            }
+
+            let mut embarked = 0;
+            for explorer in strategy.realm.expedition.explorers.iter() {
+                if let Some(explorer_region) = explorer.region {
+                    if let Some(explorer_region) = strategy.template.regions.storage().get(&explorer_region) {
+                        
+                        for neighbor in &explorer_region.neighbors {
+                            if let Some(region) = strategy.template.regions.storage().get(&neighbor).clone() {
+                                let mut region = region.clone();
+                                region.sight = RegionVisibility::Partial;
+                                strategy.realm.island.regions.insert(region.id, region);
+                            }
+                        }
+
+                        let mut region = explorer_region.clone();
+                        region.sight = RegionVisibility::Live;
+                        strategy.realm.island.regions.insert(region.id, region);
+                    }
+                }
+                if explorer.region.is_some() {
+                    embarked += 1;
+                }
+            }
+
+            if embarked == strategy.realm.expedition.explorers.iter().len() {
+                strategy.realm.completed.push(RealmObjective::EmbarkExplorers);
+                strategy.realm.story = "all explorers have embarked. you can keep playing around.".to_string();
+                strategy.realm.done = true;
+            }
+            strategy.realm.age += 1;
+        }
+    }
+}  
+
+pub fn valid_move(strategy: &RealmStrategy, _explorer: ExplorerId, _region: RegionId) -> bool {
+    match strategy.variant {
+        RealmVariant::Tutorial => {
+            // no movement restrictions for tutorial
+            true
+        }
+    }
+}
+
+pub fn valid_action(strategy: &RealmStrategy, _explorer: ExplorerId, _region: RegionId, _action: &ExplorerAction) -> bool {
+    match strategy.variant {
+        RealmVariant::Tutorial => {
+            // no restrictions on actions for tutorial
+            true
+        }
+    }
+}
+
 fn template() -> RealmTemplate {
 	RealmTemplate {
         regions: regions(),
